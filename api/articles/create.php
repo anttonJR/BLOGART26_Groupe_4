@@ -7,6 +7,47 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }//regarde si c get ou post si c'est pas post redirige vers la liste des articles
 
+// Ajouter la récupération de la thématique
+$numThem = $_POST['numThem'] ?? null;
+
+// Ajouter la validation
+if (!$numThem) {
+    $errors[] = "La thématique est obligatoire";
+}
+
+// Modifier le tableau $data
+$data = [
+    // ... autres champs ...
+    'numThem' => $numThem  // Au lieu de null
+];
+
+require_once '../../functions/upload.php';
+
+// ... après la validation des autres champs ...
+
+// Gérer l'upload de l'image
+$urlPhotArt = null;
+if (isset($_FILES['imageArt']) && $_FILES['imageArt']['error'] !== UPLOAD_ERR_NO_FILE) {
+    $uploadResult = uploadImage($_FILES['imageArt']);
+    
+    if ($uploadResult['success']) {
+        $urlPhotArt = $uploadResult['filename'];
+    } else {
+        $errors[] = $uploadResult['error'];
+    }
+}
+
+if (!empty($errors)) {
+    $_SESSION['errors'] = $errors;
+    header('Location: ../../views/backend/articles/create.php');
+    exit;
+}
+
+// Modifier le tableau $data
+$data = [
+    // ... autres champs ...
+    'urlPhotArt' => $urlPhotArt  // Au lieu de null
+];
 // Récupération des données
 $numArt = $_POST['numArt'] ?? null;
 $libTltArt = trim($_POST['libTltArt'] ?? '');

@@ -13,6 +13,24 @@ if (!$art) {
     die('Article introuvable');
 }
 ?>
+<?php
+// Charger les thématiques
+$thematiques = selectAll('THEMATIQUE', 'numThem');
+?>
+
+<!-- Thématique -->
+<div class="mb-3">
+    <label class="form-label">Thématique *</label>
+    <select name="numThem" class="form-control" required>
+        <option value="">Sélectionnez une thématique</option>
+        <?php foreach ($thematiques as $them): ?>
+            <option value="<?= $them['numThem'] ?>" 
+                    <?= $them['numThem'] == $art['numThem'] ? 'selected' : '' ?>>
+                <?= htmlspecialchars($them['libThem']) ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+</div>
 <!DOCTYPE html>
 <html>
 <head>

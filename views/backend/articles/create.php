@@ -1,6 +1,40 @@
 <?php
 session_start();
 ?>
+<?php
+// Charger les thématiques
+require_once '../../functions/query/select.php';
+$thematiques = selectAll('THEMATIQUE', 'numThem');
+?>
+
+<!-- Thématique -->
+<div class="mb-3">
+    <label class="form-label">Thématique *</label>
+    <select name="numThem" class="form-control" required>
+        <option value="">Sélectionnez une thématique</option>
+        <?php foreach ($thematiques as $them): ?>
+            <option value="<?= $them['numThem'] ?>">
+                <?= htmlspecialchars($them['libThem']) ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+</div>
+
+<!-- IMPORTANT : Ajouter enctype au formulaire -->
+<form method="POST" action="../../api/articles/create.php" enctype="multipart/form-data">
+
+<!-- Ajouter après le champ Thématique -->
+<div class="mb-3">
+    <label class="form-label">Image de l'article</label>
+    <input type="file" 
+           name="imageArt" 
+           class="form-control" 
+           accept="image/jpeg,image/png,image/gif">
+    <small class="form-text text-muted">
+        Formats acceptés : JPG, PNG, GIF - Taille max : 5 Mo
+    </small>
+</div>
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -105,5 +139,19 @@ session_start();
             <a href="list.php" class="btn btn-secondary">Annuler</a>
         </form>
     </div>
+
+    <!-- Aide BBCode -->
+<div class="alert alert-info">
+    <h5>Guide BBCode</h5>
+    <ul>
+        <li><code>[b]texte[/b]</code> → <strong>Gras</strong></li>
+        <li><code>[i]texte[/i]</code> → <em>Italique</em></li>
+        <li><code>[u]texte[/u]</code> → <u>Souligné</u></li>
+        <li><code>[url=https://example.com]Cliquez` ici[/url]</code> → Lien</li>
+        <li><code>[anchor]section1[/anchor]</code> → Ancre</li>
+        <li><code>[goto=section1]Aller à section 1[/goto]</code> → Lien vers ancre</li>
+        <li>Emojis : <code>:smile: :wink: :heart: :star:</code></li>
+    </ul>
+</div>
 </body>
 </html>
