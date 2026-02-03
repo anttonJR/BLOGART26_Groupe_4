@@ -1,6 +1,7 @@
 <?php
 session_start();
-include 'includes/cookie-consent.php';
+require_once '../../../functions/csrf.php';
+include '../includes/cookie-consent.php';
 ?>
 <!DOCTYPE html>
 <html>
@@ -24,7 +25,8 @@ include 'includes/cookie-consent.php';
                     <?php unset($_SESSION['errors']); ?>
                 <?php endif; ?>
                 
-                <form method="POST" action="../../api/members/create.php" id="form-recaptcha">
+                <form method="POST" action="../../../api/members/create.php" id="form-recaptcha">
+                    <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
                     <!-- Pseudo -->
                     <div class="mb-3">
                         <label class="form-label">Pseudo *</label>
@@ -138,7 +140,7 @@ include 'includes/cookie-consent.php';
                     
                     <!-- Bouton reCAPTCHA -->
                     <button class="g-recaptcha btn btn-primary" 
-                            data-sitekey="VOTRE_CLE_SITE"
+                            data-sitekey="6LdSOl8sAAAAAGx_I2aFpohASNt--ZCt9_3q4Gg9"
                             data-callback='onSubmit' 
                             data-action='submit'>
                         S'inscrire
