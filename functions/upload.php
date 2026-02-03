@@ -81,4 +81,22 @@ function deleteImage($filename, $uploadDir = 'src/uploads/') {
     
     return false;
 }
+
+function compressImage($source, $destination, $quality = 75) {
+    $info = getimagesize($source);
+    
+    if ($info['mime'] == 'image/jpeg') {
+        $image = imagecreatefromjpeg($source);
+    } elseif ($info['mime'] == 'image/png') {
+        $image = imagecreatefrompng($source);
+    } else {
+        return false;
+    }
+    
+    // Compression
+    imagejpeg($image, $destination, $quality);
+    imagedestroy($image);
+    
+    return true;
+}
 ?>

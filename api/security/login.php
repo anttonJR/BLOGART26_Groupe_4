@@ -13,6 +13,25 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: ../../views/frontend/security/login.php');
     exit;
 }
+require_once '../../functions/login-throttle.php';
+
+if (!canAttemptLogin($_SERVER['REMOTE_ADDR'])) {
+    $_SESSION['error'] = "Trop de tentatives. Réessayez dans 15 minutes.";
+    header('Location: ../../views/frontend/security/login.php');
+    exit;
+}
+
+// ... validation ...
+
+if (!$membre || !password_verify($passMemb, $membre['passMemb'])) {
+    recordLoginAttempt();
+    $_SESSION['error'] = "Identifiants incorrects";
+    header('Location: ../../views/frontend/security/login.php');
+    exit;
+}
+
+// Connexion réussie
+resetLoginAttempts();
 
 // Récupération des données
 $pseudoMemb = trim($_POST['pseudoMemb'] ?? '');
