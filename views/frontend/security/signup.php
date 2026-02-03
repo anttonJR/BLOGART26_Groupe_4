@@ -1,5 +1,6 @@
 <?php
 session_start();
+include 'includes/cookie-consent.php';
 ?>
 <!DOCTYPE html>
 <html>

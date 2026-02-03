@@ -1,5 +1,6 @@
 <?php
 session_start();
+include 'includes/cookie-consent.php';
 require_once '../../functions/csrf.php';
 $pageTitle = 'Contact - BlogArt';
 include 'includes/header.php';
