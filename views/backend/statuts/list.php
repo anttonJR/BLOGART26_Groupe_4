@@ -1,77 +1,77 @@
 <?php
-$pageTitle = 'Gestion des statuts';
-$breadcrumb = [['label' => 'Statuts']];
-require_once dirname(__DIR__) . '/includes/header.php';
-require_once ROOT . '/functions/global.inc.php';
+$pageTitle = 'Statuts';
+require_once __DIR__ . '/../includes/header.php';
+require_once ROOT . '/functions/auth.php';
+requireAdmin();
 
-// Load all statuts
-$statuts = sql_select("STATUT", "*");
+global $DB;
+
+$stmt = $DB->query("SELECT * FROM STATUT ORDER BY numStat");
+$statuts = $stmt->fetchAll();
 ?>
 
-<!-- Page Header -->
 <div class="page-header">
-    <h1><i class="bi bi-person-badge me-2"></i>Gestion des statuts</h1>
-    <div class="btn-group">
-        <a href="<?= ROOT_URL ?>/views/backend/statuts/create.php" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i>Nouveau statut
-        </a>
-    </div>
+    <h1><i class="bi bi-shield me-2"></i>Statuts</h1>
+    <a href="<?= ROOT_URL ?>/views/backend/statuts/create.php" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1"></i>Nouveau statut
+    </a>
 </div>
 
-<!-- Statuts Table -->
+<?php if (isset($_SESSION['success'])): ?>
+    <div class="alert alert-success"><?= $_SESSION['success']; unset($_SESSION['success']); ?></div>
+<?php endif; ?>
+
 <div class="admin-card">
-    <div class="card-header">
-        <h5><i class="bi bi-list-ul me-2"></i>Liste des statuts (<?= count($statuts) ?>)</h5>
-    </div>
     <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table admin-table">
-                <thead>
-                    <tr>
-                        <th style="width: 80px;">ID</th>
-                        <th>Nom du statut</th>
-                        <th class="text-end" style="width: 150px;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($statuts)): ?>
+        <table class="table admin-table mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Libellé</th>
+                    <th>Permissions</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($statuts)): ?>
+                    <tr><td colspan="4" class="text-center py-4 text-muted">Aucun statut</td></tr>
+                <?php else: ?>
+                    <?php foreach ($statuts as $stat): ?>
                         <tr>
-                            <td colspan="3" class="text-center py-4 text-muted">
-                                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                                Aucun statut trouvé
+                            <td><?= $stat['numStat'] ?></td>
+                            <td>
+                                <?php 
+                                $badgeClass = match($stat['numStat']) {
+                                    1 => 'bg-danger',
+                                    2 => 'bg-warning',
+                                    default => 'bg-secondary'
+                                };
+                                ?>
+                                <span class="badge <?= $badgeClass ?>"><?= htmlspecialchars($stat['libStat']) ?></span>
+                            </td>
+                            <td>
+                                <?php if ($stat['numStat'] == 1): ?>
+                                    <small class="text-muted">Accès complet (Dashboard, CRUD, Modération)</small>
+                                <?php elseif ($stat['numStat'] == 2): ?>
+                                    <small class="text-muted">Modération des commentaires</small>
+                                <?php else: ?>
+                                    <small class="text-muted">Lecture, commentaires</small>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group-actions">
+                                    <a href="<?= ROOT_URL ?>/views/backend/statuts/edit.php?id=<?= $stat['numStat'] ?>" class="btn btn-action btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                                    <?php if ($stat['numStat'] > 3): ?>
+                                        <a href="<?= ROOT_URL ?>/views/backend/statuts/delete.php?id=<?= $stat['numStat'] ?>" class="btn btn-action btn-outline-danger" onclick="return confirm('Supprimer ?')"><i class="bi bi-trash"></i></a>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                         </tr>
-                    <?php else: ?>
-                        <?php foreach($statuts as $statut): ?>
-                            <tr>
-                                <td>
-                                    <span class="badge bg-secondary"><?= $statut['numStat'] ?></span>
-                                </td>
-                                <td>
-                                    <strong><?= htmlspecialchars($statut['libStat']) ?></strong>
-                                </td>
-                                <td class="text-end">
-                                    <div class="btn-group-actions">
-                                        <a href="edit.php?numStat=<?= $statut['numStat'] ?>" 
-                                           class="btn btn-action btn-outline-primary" 
-                                           title="Modifier">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
-                                        <a href="delete.php?numStat=<?= $statut['numStat'] ?>" 
-                                           class="btn btn-action btn-outline-danger" 
-                                           title="Supprimer"
-                                           onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce statut ?')">
-                                            <i class="bi bi-trash"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
     </div>
 </div>
 
-<?php require_once dirname(__DIR__) . '/includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>

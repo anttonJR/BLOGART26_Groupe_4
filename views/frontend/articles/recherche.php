@@ -13,7 +13,7 @@ $where = '1=1';
 $params = [];
 
 if ($searchQuery) {
-    $where .= " AND (a.libTltArt LIKE ? OR a.libChapArt LIKE ?)";
+    $where .= " AND (a.libTitrArt LIKE ? OR a.libChapoArt LIKE ?)";
     $params[] = '%' . $searchQuery . '%';
     $params[] = '%' . $searchQuery . '%';
 }
@@ -37,7 +37,8 @@ if ($keyword) {
             (SELECT COUNT(*) FROM LIKEART l WHERE l.numArt = a.numArt AND l.likeA = 1) as nb_likes
             FROM ARTICLE a
             LEFT JOIN THEMATIQUE t ON a.numThem = t.numThem
-            INNER JOIN MOTCLE mc ON mc.libMotCle = ?
+            INNER JOIN MOTCLEARTICLE mca ON mca.numArt = a.numArt
+            INNER JOIN MOTCLE mc ON mc.numMotCle = mca.numMotCle AND mc.libMotCle = ?
             WHERE " . $where . "
             ORDER BY " . $orderBy;
     array_unshift($params, $keyword);
@@ -188,10 +189,10 @@ if ($keyword) $pageTitle = 'Mot-clé : ' . htmlspecialchars($keyword);
                 <?php foreach ($articles as $article): ?>
                     <div class="col-lg-4 col-md-6">
                         <div class="card h-100">
-                            <?php if ($article['urlPhotArt']): ?>
+                            <?php if (!empty($article['urlPhotArt'])): ?>
                                 <img src="../../../src/uploads/<?= htmlspecialchars($article['urlPhotArt']) ?>" 
                                      class="card-img-top" 
-                                     alt="<?= htmlspecialchars($article['libTltArt']) ?>"
+                                     alt="<?= htmlspecialchars($article['libTitrArt'] ?? '') ?>"
                                      style="height: 200px; object-fit: cover;">
                             <?php endif; ?>
                             <div class="card-body d-flex flex-column">
@@ -202,7 +203,7 @@ if ($keyword) $pageTitle = 'Mot-clé : ' . htmlspecialchars($keyword);
                                 <p class="text-muted small">
                                     <i class="bi bi-calendar"></i> <?= date('d M Y', strtotime($article['dtCreaArt'])) ?>
                                 </p>
-                                <p class="flex-grow-1"><?= htmlspecialchars(substr(strip_tags($article['libChapoArt']), 0, 120)) ?>...</p>
+                                <p class="flex-grow-1"><?= htmlspecialchars(substr(strip_tags($article['libChapoArt'] ?? ''), 0, 120)) ?>...</p>
                                 <div class="d-flex justify-content-between align-items-center mt-auto">
                                     <span class="text-muted">
                                         <i class="bi bi-heart"></i> <?= $article['nb_likes'] ?> likes

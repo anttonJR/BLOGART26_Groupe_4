@@ -1,114 +1,78 @@
 <?php
-$pageTitle = 'Gestion des articles';
-$breadcrumb = [['label' => 'Articles']];
-require_once dirname(__DIR__) . '/includes/header.php';
-require_once ROOT . '/functions/query/select.php';
-require_once ROOT . '/functions/motcle.php';
-
-// Récupérer tous les articles avec leur thématique
-$sql = "SELECT a.*, t.libThem 
-        FROM ARTICLE a 
-        LEFT JOIN THEMATIQUE t ON a.numThem = t.numThem 
-        ORDER BY a.dtCreaArt DESC";
+$pageTitle = 'Articles';
+require_once __DIR__ . '/../includes/header.php';
+require_once ROOT . '/functions/auth.php';
+requireAdmin();
 
 global $DB;
-$stmt = $DB->query($sql);
+
+// Exclure les articles dans la corbeille
+$stmt = $DB->query("
+    SELECT a.*, t.libThem 
+    FROM ARTICLE a 
+    LEFT JOIN THEMATIQUE t ON a.numThem = t.numThem 
+    WHERE a.delLogiq = 0 OR a.delLogiq IS NULL
+    ORDER BY a.dtCreaArt DESC
+");
 $articles = $stmt->fetchAll();
+
+// Compter les articles dans la corbeille
+$stmtTrash = $DB->query("SELECT COUNT(*) as count FROM ARTICLE WHERE delLogiq = 1");
+$trashCount = $stmtTrash->fetch()['count'];
 ?>
 
-<!-- Page Header -->
 <div class="page-header">
-    <h1><i class="bi bi-file-earmark-text me-2"></i>Gestion des articles</h1>
-    <div class="btn-group">
+    <h1><i class="bi bi-file-earmark-text me-2"></i>Articles</h1>
+    <div class="d-flex gap-2">
+        <?php if ($trashCount > 0): ?>
+        <a href="<?= ROOT_URL ?>/views/backend/articles/trash.php" class="btn btn-outline-secondary">
+            <i class="bi bi-trash me-1"></i>Corbeille <span class="badge bg-danger"><?= $trashCount ?></span>
+        </a>
+        <?php endif; ?>
         <a href="<?= ROOT_URL ?>/views/backend/articles/create.php" class="btn btn-primary">
             <i class="bi bi-plus-lg me-1"></i>Nouvel article
         </a>
     </div>
 </div>
 
-<!-- Articles Table -->
+<?php if (isset($_SESSION['success'])): ?>
+    <div class="alert alert-success"><?= $_SESSION['success']; unset($_SESSION['success']); ?></div>
+<?php endif; ?>
+
 <div class="admin-card">
-    <div class="card-header">
-        <h5><i class="bi bi-list-ul me-2"></i>Liste des articles (<?= count($articles) ?>)</h5>
-    </div>
     <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table admin-table">
-                <thead>
-                    <tr>
-                        <th style="width: 60px;">N°</th>
-                        <th>Titre</th>
-                        <th>Thématique</th>
-                        <th>Mots-clés</th>
-                        <th>Date création</th>
-                        <th class="text-end" style="width: 150px;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($articles)): ?>
+        <table class="table admin-table mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Titre</th>
+                    <th>Thématique</th>
+                    <th>Date</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($articles)): ?>
+                    <tr><td colspan="5" class="text-center py-4 text-muted">Aucun article</td></tr>
+                <?php else: ?>
+                    <?php foreach ($articles as $art): ?>
                         <tr>
-                            <td colspan="6" class="text-center py-4 text-muted">
-                                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                                Aucun article trouvé
+                            <td><?= $art['numArt'] ?></td>
+                            <td><strong><?= htmlspecialchars($art['libTitrArt'] ?? 'Sans titre') ?></strong></td>
+                            <td><span class="badge bg-secondary"><?= htmlspecialchars($art['libThem'] ?? 'N/A') ?></span></td>
+                            <td><?= isset($art['dtCreaArt']) ? date('d/m/Y', strtotime($art['dtCreaArt'])) : 'N/A' ?></td>
+                            <td class="text-end">
+                                <div class="btn-group-actions">
+                                    <a href="<?= ROOT_URL ?>/views/backend/articles/edit.php?id=<?= $art['numArt'] ?>" class="btn btn-action btn-outline-primary" title="Modifier"><i class="bi bi-pencil"></i></a>
+                                    <a href="<?= ROOT_URL ?>/views/backend/articles/delete.php?id=<?= $art['numArt'] ?>" class="btn btn-action btn-outline-warning" onclick="return confirm('Déplacer dans la corbeille ?')" title="Corbeille"><i class="bi bi-trash"></i></a>
+                                </div>
                             </td>
                         </tr>
-                    <?php else: ?>
-                        <?php foreach ($articles as $art): ?>
-                            <?php $motscles = getMotsClesArticle($art['numArt']); ?>
-                            <tr>
-                                <td>
-                                    <span class="badge bg-secondary"><?= $art['numArt'] ?></span>
-                                </td>
-                                <td>
-                                    <strong><?= htmlspecialchars($art['libTltArt']) ?></strong>
-                                </td>
-                                <td>
-                                    <?php if ($art['libThem']): ?>
-                                        <span class="badge bg-info"><?= htmlspecialchars($art['libThem']) ?></span>
-                                    <?php else: ?>
-                                        <span class="text-muted">—</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <?php if (!empty($motscles)): ?>
-                                        <?php foreach ($motscles as $mc): ?>
-                                            <span class="badge bg-secondary"><?= htmlspecialchars($mc['libMotCle']) ?></span>
-                                        <?php endforeach; ?>
-                                    <?php else: ?>
-                                        <span class="text-muted">—</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <small class="text-muted">
-                                        <i class="bi bi-calendar me-1"></i>
-                                        <?= date('d/m/Y', strtotime($art['dtCreaArt'])) ?>
-                                    </small>
-                                </td>
-                                <td class="text-end">
-                                    <div class="btn-group-actions">
-                                        <a href="edit.php?id=<?= $art['numArt'] ?>" 
-                                           class="btn btn-action btn-outline-primary" 
-                                           title="Modifier">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
-                                        <a href="delete.php?id=<?= $art['numArt'] ?>" 
-                                           class="btn btn-action btn-outline-danger" 
-                                           title="Supprimer"
-                                           onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet article ?')">
-                                            <i class="bi bi-trash"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
     </div>
 </div>
 
-<?php require_once dirname(__DIR__) . '/includes/footer.php'; ?>
-        </tr>
-    <?php endforeach; ?>
-</tbody>
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>

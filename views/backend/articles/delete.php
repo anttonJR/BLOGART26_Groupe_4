@@ -1,99 +1,21 @@
 <?php
-session_start();
-require_once '../../functions/csrf.php';
-require_once '../../functions/query/select.php';
+require_once __DIR__ . '/../../../config.php';
+require_once ROOT . '/functions/auth.php';
+requireAdmin();
 
-$numArt = $_GET['id'] ?? null;
-if (!$numArt) {
-    header('Location: list.php');
+global $DB;
+
+if (!isset($_GET['id'])) {
+    header('Location: ' . ROOT_URL . '/views/backend/articles/list.php');
     exit;
 }
 
-$art = selectOne('ARTICLE', 'numArt', $numArt);
-if (!$art) {
-    die('Article introuvable');
-}
+$id = (int)$_GET['id'];
 
-?>
-<?php
-// Charger l'article avec sa thématique
-$sql = "SELECT a.*, t.libThem 
-        FROM ARTICLE a 
-        LEFT JOIN THEMATIQUE t ON a.numThem = t.numThem 
-        WHERE a.numArt = ?";
-$pdo = getConnection();
-$stmt = $pdo->prepare($sql);
-$stmt->execute([$numArt]);
-$art = $stmt->fetch();
-?>
+// Soft delete - marquer comme supprimé au lieu de supprimer vraiment
+$stmt = $DB->prepare("UPDATE ARTICLE SET delLogiq = 1, dtDelLogArt = NOW() WHERE numArt = ?");
+$stmt->execute([$id]);
 
-<!-- Ajouter l'affichage -->
-<dt class="col-sm-3">Thématique :</dt>
-<dd class="col-sm-9"><?= htmlspecialchars($art['libThem'] ?? 'Aucune') ?></dd>
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Supprimer un article</title>
-    <link rel="stylesheet" href="../../../assets/css/bootstrap.min.css">
-</head>
-<body>
-    <div class="container mt-5">
-        <h1>Confirmer la suppression</h1>
-        
-        <div class="alert alert-warning">
-            <strong>Attention !</strong> Cette action est irréversible.
-        </div>
-        
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title"><?= htmlspecialchars($art['libTltArt']) ?></h5>
-                <p class="card-text"><?= htmlspecialchars(substr($art['libChapArt'], 0, 200)) ?>...</p>
-                <dl class="row">
-                    <dt class="col-sm-3">Numéro :</dt>
-                    <dd class="col-sm-9"><?= $art['numArt'] ?></dd>
-                    
-                    <dt class="col-sm-3">Date création :</dt>
-                    <dd class="col-sm-9"><?= date('d/m/Y H:i', strtotime($art['dtCreaArt'])) ?></dd>
-                </dl>
-            </div>
-        </div>
-        
-        <form method="POST" action="../../api/articles/delete.php" class="mt-3">
-            <?php csrfField(); ?>
-            <input type="hidden" name="numArt" value="<?= $art['numArt'] ?>">
-            
-            <button type="submit" class="btn btn-danger">Confirmer la suppression</button>
-            <a href="list.php" class="btn btn-secondary">Annuler</a>
-        </form>
-    </div>
-</body>
-</html>
-<?php
-require_once '../../functions/motcle.php';
-
-// Récupérer les mots-clés de l'article
-$motscles = getMotsClesArticle($numArt);
-?>
-
-<!-- Ajouter dans la carte d'affichage -->
-<dl class="row">
-    <dt class="col-sm-3">Numéro :</dt>
-    <dd class="col-sm-9"><?= $art['numArt'] ?></dd>
-    
-    <dt class="col-sm-3">Thématique :</dt>
-    <dd class="col-sm-9"><?= htmlspecialchars($art['libThem'] ?? 'Aucune') ?></dd>
-    
-    <dt class="col-sm-3">Mots-clés :</dt>
-    <dd class="col-sm-9">
-        <?php if (empty($motscles)): ?>
-            <em class="text-muted">Aucun</em>
-        <?php else: ?>
-            <?php foreach ($motscles as $mc): ?>
-                <span class="badge bg-secondary"><?= htmlspecialchars($mc['libMotCle']) ?></span>
-            <?php endforeach; ?>
-        <?php endif; ?>
-    </dd>
-    
-    <dt class="col-sm-3">Date création :</dt>
-    <dd class="col-sm-9"><?= date('d/m/Y H:i', strtotime($art['dtCreaArt'])) ?></dd>
-</dl>
+$_SESSION['success'] = "Article déplacé dans la corbeille";
+header('Location: ' . ROOT_URL . '/views/backend/articles/list.php');
+exit;

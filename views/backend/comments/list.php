@@ -1,105 +1,76 @@
 <?php
-$pageTitle = 'Gestion des commentaires';
-$breadcrumb = [['label' => 'Commentaires']];
-require_once dirname(__DIR__) . '/includes/header.php';
-require_once ROOT . '/functions/bbcode.php';
+$pageTitle = 'Commentaires';
+require_once __DIR__ . '/../includes/header.php';
+require_once ROOT . '/functions/auth.php';
+requireAdmin();
 
 global $DB;
 
-// Récupérer tous les commentaires validés
-$sql = "SELECT c.*, m.pseudoMemb, a.libTltArt 
-        FROM COMMENT c 
-        INNER JOIN MEMBRE m ON c.numMemb = m.numMemb 
-        INNER JOIN ARTICLE a ON c.numArt = a.numArt 
-        WHERE c.attModOK = 1 AND c.dtDelLogCom IS NULL
-        ORDER BY c.dtCreaCoM DESC";
-
-$stmt = $DB->query($sql);
+$stmt = $DB->query("
+    SELECT c.*, a.libTitrArt, m.prenomMemb, m.nomMemb 
+    FROM COMMENT c 
+    LEFT JOIN ARTICLE a ON c.numArt = a.numArt 
+    LEFT JOIN MEMBRE m ON c.numMemb = m.numMemb 
+    ORDER BY c.dtCreaCom DESC
+");
 $comments = $stmt->fetchAll();
 ?>
 
-<!-- Page Header -->
 <div class="page-header">
-    <h1><i class="bi bi-chat-left-text me-2"></i>Gestion des commentaires</h1>
-    <div class="btn-group">
-        <a href="<?= ROOT_URL ?>/views/backend/moderation/comments.php" class="btn btn-warning">
-            <i class="bi bi-shield-check me-1"></i>Modération
-        </a>
-    </div>
+    <h1><i class="bi bi-chat-dots me-2"></i>Commentaires</h1>
+    <a href="<?= ROOT_URL ?>/views/backend/moderation/comments.php" class="btn btn-warning">
+        <i class="bi bi-shield-check me-1"></i>Modération
+    </a>
 </div>
 
-<!-- Comments Table -->
+<?php if (isset($_SESSION['success'])): ?>
+    <div class="alert alert-success"><?= $_SESSION['success']; unset($_SESSION['success']); ?></div>
+<?php endif; ?>
+
 <div class="admin-card">
-    <div class="card-header">
-        <h5><i class="bi bi-list-ul me-2"></i>Commentaires validés (<?= count($comments) ?>)</h5>
-    </div>
     <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table admin-table">
-                <thead>
-                    <tr>
-                        <th style="width: 60px;">ID</th>
-                        <th>Article</th>
-                        <th>Auteur</th>
-                        <th>Commentaire</th>
-                        <th>Date</th>
-                        <th class="text-end" style="width: 150px;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($comments)): ?>
+        <table class="table admin-table mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Commentaire</th>
+                    <th>Article</th>
+                    <th>Auteur</th>
+                    <th>Date</th>
+                    <th>Statut</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($comments)): ?>
+                    <tr><td colspan="7" class="text-center py-4 text-muted">Aucun commentaire</td></tr>
+                <?php else: ?>
+                    <?php foreach ($comments as $com): ?>
                         <tr>
-                            <td colspan="6" class="text-center py-4 text-muted">
-                                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                                Aucun commentaire trouvé
+                            <td><?= $com['numCom'] ?></td>
+                            <td><?= htmlspecialchars(substr($com['libCom'] ?? '', 0, 50)) ?>...</td>
+                            <td><?= htmlspecialchars($com['libTitrArt'] ?? 'N/A') ?></td>
+                            <td><?= htmlspecialchars(($com['prenomMemb'] ?? '') . ' ' . ($com['nomMemb'] ?? '')) ?></td>
+                            <td><?= isset($com['dtCreaCom']) ? date('d/m/Y', strtotime($com['dtCreaCom'])) : 'N/A' ?></td>
+                            <td>
+                                <?php if (isset($com['attModOK']) && $com['attModOK'] == 1): ?>
+                                    <span class="badge bg-success">Approuvé</span>
+                                <?php else: ?>
+                                    <span class="badge bg-warning">En attente</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group-actions">
+                                    <a href="<?= ROOT_URL ?>/views/backend/comments/edit.php?id=<?= $com['numCom'] ?>" class="btn btn-action btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                                    <a href="<?= ROOT_URL ?>/views/backend/comments/delete.php?id=<?= $com['numCom'] ?>" class="btn btn-action btn-outline-danger" onclick="return confirm('Supprimer ?')"><i class="bi bi-trash"></i></a>
+                                </div>
                             </td>
                         </tr>
-                    <?php else: ?>
-                        <?php foreach ($comments as $com): ?>
-                            <tr>
-                                <td>
-                                    <span class="badge bg-secondary"><?= $com['numCom'] ?></span>
-                                </td>
-                                <td>
-                                    <strong class="text-truncate d-inline-block" style="max-width: 150px;">
-                                        <?= htmlspecialchars($com['libTltArt']) ?>
-                                    </strong>
-                                </td>
-                                <td>
-                                    <small>@<?= htmlspecialchars($com['pseudoMemb']) ?></small>
-                                </td>
-                                <td>
-                                    <span class="text-truncate d-inline-block" style="max-width: 200px;">
-                                        <?= htmlspecialchars(substr(strip_tags($com['libCom']), 0, 50)) ?>...
-                                    </span>
-                                </td>
-                                <td>
-                                    <small class="text-muted">
-                                        <?= date('d/m/Y H:i', strtotime($com['dtCreaCoM'])) ?>
-                                    </small>
-                                </td>
-                                <td class="text-end">
-                                    <div class="btn-group-actions">
-                                        <a href="edit.php?id=<?= $com['numCom'] ?>" 
-                                           class="btn btn-action btn-outline-primary" 
-                                           title="Modifier">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
-                                        <a href="delete.php?id=<?= $com['numCom'] ?>" 
-                                           class="btn btn-action btn-outline-danger" 
-                                           title="Supprimer"
-                                           onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce commentaire ?')">
-                                            <i class="bi bi-trash"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
     </div>
 </div>
 
-<?php require_once dirname(__DIR__) . '/includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>

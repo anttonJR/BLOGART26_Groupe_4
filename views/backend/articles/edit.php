@@ -1,157 +1,140 @@
 <?php
+// Logique de traitement AVANT l'inclusion du header
 session_start();
-require_once '../../functions/csrf.php';
-require_once '../../functions/query/select.php';
+require_once __DIR__ . '/../../../config.php';
+require_once ROOT . '/functions/auth.php';
+requireAdmin();
 
-$numArt = $_GET['id'] ?? null;
-if (!$numArt) {
-    header('Location: list.php');
+global $DB;
+$error = '';
+
+if (!isset($_GET['id'])) {
+    header('Location: ' . ROOT_URL . '/views/backend/articles/list.php');
     exit;
 }
 
-$art = selectOne('ARTICLE', 'numArt', $numArt);
-if (!$art) {
-    die('Article introuvable');
+$id = (int)$_GET['id'];
+$stmt = $DB->prepare("SELECT * FROM ARTICLE WHERE numArt = ?");
+$stmt->execute([$id]);
+$article = $stmt->fetch();
+
+if (!$article) {
+    header('Location: ' . ROOT_URL . '/views/backend/articles/list.php');
+    exit;
 }
-?>
-<?php
+
 // Charger les thématiques
-$thematiques = selectAll('THEMATIQUE', 'numThem');
+$stmtThem = $DB->query("SELECT * FROM THEMATIQUE ORDER BY libThem");
+$thematiques = $stmtThem->fetchAll();
+
+// Charger les mots-clés
+$stmtMot = $DB->query("SELECT * FROM MOTCLE ORDER BY libMotCle");
+$motcles = $stmtMot->fetchAll();
+
+// Mots-clés actuels (table MOTCLEARTICLE)
+$stmtCurrent = $DB->prepare("SELECT numMotCle FROM MOTCLEARTICLE WHERE numArt = ?");
+$stmtCurrent->execute([$id]);
+$currentMotcles = $stmtCurrent->fetchAll(PDO::FETCH_COLUMN);
+
+// Traitement du formulaire POST AVANT l'affichage HTML
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $libTitrArt = trim($_POST['libTitrArt'] ?? '');
+    $libChapoArt = trim($_POST['libChapoArt'] ?? '');
+    $libAccrochArt = trim($_POST['libAccrochArt'] ?? '');
+    $parag1Art = trim($_POST['parag1Art'] ?? '');
+    $numThem = (int)($_POST['numThem'] ?? 0);
+    $selectedMotcles = $_POST['motcles'] ?? [];
+    
+    if (empty($libTitrArt)) {
+        $error = "Le titre est requis";
+    } else {
+        $stmt = $DB->prepare("UPDATE ARTICLE SET libTitrArt = ?, libChapoArt = ?, libAccrochArt = ?, parag1Art = ?, numThem = ? WHERE numArt = ?");
+        $stmt->execute([$libTitrArt, $libChapoArt, $libAccrochArt, $parag1Art, $numThem ?: null, $id]);
+        
+        // Mettre à jour les mots-clés (table MOTCLEARTICLE)
+        $stmtDel = $DB->prepare("DELETE FROM MOTCLEARTICLE WHERE numArt = ?");
+        $stmtDel->execute([$id]);
+        
+        foreach ($selectedMotcles as $numMotCle) {
+            $stmtMC = $DB->prepare("INSERT INTO MOTCLEARTICLE (numArt, numMotCle) VALUES (?, ?)");
+            $stmtMC->execute([$id, $numMotCle]);
+        }
+        
+        $_SESSION['success'] = "Article modifié avec succès";
+        header('Location: ' . ROOT_URL . '/views/backend/articles/list.php');
+        exit;
+    }
+}
+
+// Maintenant on peut inclure le header (après tout traitement qui pourrait rediriger)
+$pageTitle = 'Modifier article';
+require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<!-- Thématique -->
-<div class="mb-3">
-    <label class="form-label">Thématique *</label>
-    <select name="numThem" class="form-control" required>
-        <option value="">Sélectionnez une thématique</option>
-        <?php foreach ($thematiques as $them): ?>
-            <option value="<?= $them['numThem'] ?>" 
-                    <?= $them['numThem'] == $art['numThem'] ? 'selected' : '' ?>>
-                <?= htmlspecialchars($them['libThem']) ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
+<div class="page-header">
+    <h1><i class="bi bi-pencil me-2"></i>Modifier article</h1>
+    <a href="<?= ROOT_URL ?>/views/backend/articles/list.php" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Retour
+    </a>
 </div>
 
-<form method="POST" action="../../api/articles/update.php" enctype="multipart/form-data">
-    <?php csrfField(); ?>
+<?php if ($error): ?>
+    <div class="alert alert-danger"><?= $error ?></div>
+<?php endif; ?>
 
-<!-- Ajouter l'affichage de l'image actuelle et le champ d'upload -->
-<div class="mb-3">
-    <label class="form-label">Image de l'article</label>
-    
-    <?php if ($art['urlPhotArt']): ?>
-        <div class="mb-2">
-            <p>Image actuelle :</p>
-            <img src="../../../src/uploads/<?= htmlspecialchars($art['urlPhotArt']) ?>" 
-                 alt="Image article" 
-                 class="img-thumbnail" 
-                 style="max-width: 300px;">
-        </div>
-    <?php endif; ?>
-    
-    <input type="file" 
-           name="imageArt" 
-           class="form-control" 
-           accept="image/jpeg,image/png,image/gif">
-    <small class="form-text text-muted">
-        Formats acceptés : JPG, PNG, GIF - Taille max : 5 Mo<br>
-        <?php if ($art['urlPhotArt']): ?>
-            Laisser vide pour conserver l'image actuelle.
-        <?php endif; ?>
-    </small>
-</div>
-
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Modifier un article</title>
-    <link rel="stylesheet" href="../../../assets/css/bootstrap.min.css">
-</head>
-<body>
-    <div class="container mt-5">
-        <h1>Modifier l'article</h1>
-        
-        <form method="POST" action="../../api/articles/update.php">
-            <?php csrfField(); ?>
-            <input type="hidden" name="numArt" value="<?= $art['numArt'] ?>">
-            
-            <!-- Titre -->
+<div class="admin-card">
+    <div class="card-body">
+        <form method="POST">
             <div class="mb-3">
-                <label class="form-label">Titre de l'article *</label>
-                <input type="text" 
-                       name="libTltArt" 
-                       class="form-control" 
-                       value="<?= htmlspecialchars($art['libTltArt']) ?>" 
-                       maxlength="100" 
-                       required>
+                <label for="libTitrArt" class="form-label">Titre *</label>
+                <input type="text" class="form-control" id="libTitrArt" name="libTitrArt" required 
+                       value="<?= htmlspecialchars($_POST['libTitrArt'] ?? $article['libTitrArt']) ?>">
             </div>
-            
-            <!-- Chapô -->
             <div class="mb-3">
-                <label class="form-label">Chapô *</label>
-                <textarea name="libChapArt" 
-                          class="form-control" 
-                          rows="3" 
-                          required><?= htmlspecialchars($art['libChapArt']) ?></textarea>
+                <label for="libChapoArt" class="form-label">Chapô</label>
+                <textarea class="form-control" id="libChapoArt" name="libChapoArt" rows="2"><?= htmlspecialchars($_POST['libChapoArt'] ?? $article['libChapoArt'] ?? '') ?></textarea>
             </div>
-            
-            <!-- Accroche -->
             <div class="mb-3">
-                <label class="form-label">Accroche</label>
-                <input type="text" 
-                       name="libAccrochArt" 
-                       class="form-control" 
-                       value="<?= htmlspecialchars($art['libAccrochArt'] ?? '') ?>" 
-                       maxlength="100">
+                <label for="libAccrochArt" class="form-label">Accroche</label>
+                <textarea class="form-control" id="libAccrochArt" name="libAccrochArt" rows="2"><?= htmlspecialchars($_POST['libAccrochArt'] ?? $article['libAccrochArt'] ?? '') ?></textarea>
             </div>
-            
-            <!-- Paragraphe 1 -->
             <div class="mb-3">
-                <label class="form-label">Paragraphe 1 *</label>
-                <textarea name="parag1Art" 
-                          class="form-control" 
-                          rows="5" 
-                          required><?= htmlspecialchars($art['parag1Art']) ?></textarea>
+                <label for="parag1Art" class="form-label">Contenu</label>
+                <textarea class="form-control" id="parag1Art" name="parag1Art" rows="10"><?= htmlspecialchars($_POST['parag1Art'] ?? $article['parag1Art'] ?? '') ?></textarea>
             </div>
-            
-            <!-- Titre éditorial -->
-            <div class="mb-3">
-                <label class="form-label">Titre éditorial</label>
-                <input type="text" 
-                       name="libSsTitl1Art" 
-                       class="form-control" 
-                       value="<?= htmlspecialchars($art['libSsTitl1Art'] ?? '') ?>" 
-                       maxlength="100">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="numThem" class="form-label">Thématique</label>
+                    <select class="form-select" id="numThem" name="numThem">
+                        <option value="">-- Sélectionner --</option>
+                        <?php foreach ($thematiques as $them): ?>
+                            <option value="<?= $them['numThem'] ?>" <?= (($_POST['numThem'] ?? $article['numThem']) == $them['numThem']) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($them['libThem']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Mots-clés</label>
+                    <div class="border rounded p-3" style="max-height: 150px; overflow-y: auto;">
+                        <?php foreach ($motcles as $mot): ?>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="motcles[]" 
+                                       value="<?= $mot['numMotCle'] ?>" id="mot<?= $mot['numMotCle'] ?>"
+                                       <?= in_array($mot['numMotCle'], $_POST['motcles'] ?? $currentMotcles) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="mot<?= $mot['numMotCle'] ?>">
+                                    <?= htmlspecialchars($mot['libMotCle']) ?>
+                                </label>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             </div>
-            
-            <!-- Paragraphe 2 -->
-            <div class="mb-3">
-                <label class="form-label">Paragraphe 2</label>
-                <textarea name="parag2Art" 
-                          class="form-control" 
-                          rows="5"><?= htmlspecialchars($art['parag2Art'] ?? '') ?></textarea>
-            </div>
-            
-            <!-- Paragraphe 3 -->
-            <div class="mb-3">
-                <label class="form-label">Paragraphe 3</label>
-                <textarea name="parag3Art" 
-                          class="form-control" 
-                          rows="5"><?= htmlspecialchars($art['parag3Art'] ?? '') ?></textarea>
-            </div>
-            
-            <!-- Conclusion -->
-            <div class="mb-3">
-                <label class="form-label">Conclusion</label>
-                <textarea name="libConcArt" 
-                          class="form-control" 
-                          rows="3"><?= htmlspecialchars($art['libConcArt'] ?? '') ?></textarea>
-            </div>
-            
-            <button type="submit" class="btn btn-primary">Mettre à jour</button>
-            <a href="list.php" class="btn btn-secondary">Annuler</a>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg me-1"></i>Enregistrer
+            </button>
         </form>
     </div>
-</body>
-</html>
+</div>
+
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>

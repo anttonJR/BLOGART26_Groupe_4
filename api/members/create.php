@@ -1,7 +1,13 @@
 <?php
 session_start();
+<<<<<<< HEAD
+=======
+require_once '../../config.php';
+>>>>>>> 3607ba0048879bf47467f9aaedd5d73e5563c647
 require_once '../../functions/query/insert.php';
 require_once '../../functions/query/select.php';
+
+global $DB;
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: ../../views/frontend/security/signup.php');
@@ -74,6 +80,7 @@ if ($accordMemb != 1) {
     $errors[] = "Vous devez accepter le stockage de vos données pour vous inscrire";
 }
 
+<<<<<<< HEAD
 // === 7. VALIDATION reCAPTCHA ===
 if (isset($_POST['g-recaptcha-response'])) {
     $token = $_POST['g-recaptcha-response'];
@@ -97,9 +104,37 @@ if (isset($_POST['g-recaptcha-response'])) {
     
     if (!$response->success || $response->score < 0.5) {
         $errors[] = "Validation reCAPTCHA échouée. Êtes-vous un robot ?";
+=======
+// === 7. VALIDATION reCAPTCHA (optionnel si clés non configurées) ===
+$recaptchaSecret = getenv('RECAPTCHA_SECRET_KEY');
+if ($recaptchaSecret && $recaptchaSecret !== 'your_secret_key_here') {
+    if (isset($_POST['g-recaptcha-response'])) {
+        $token = $_POST['g-recaptcha-response'];
+        $url = 'https://www.google.com/recaptcha/api/siteverify';
+        $data = [
+            'secret' => $recaptchaSecret,
+            'response' => $token
+        ];
+        
+        $options = [
+            'http' => [
+                'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
+                'method' => 'POST',
+                'content' => http_build_query($data)
+            ]
+        ];
+        
+        $context = stream_context_create($options);
+        $result = file_get_contents($url, false, $context);
+        $response = json_decode($result);
+        
+        if (!$response->success) {
+            $errors[] = "Validation reCAPTCHA échouée. Êtes-vous un robot ?";
+        }
+    } else {
+        $errors[] = "Validation reCAPTCHA manquante";
+>>>>>>> 3607ba0048879bf47467f9aaedd5d73e5563c647
     }
-} else {
-    $errors[] = "Validation reCAPTCHA manquante";
 }
 
 // === 8. SI ERREURS, RETOUR AU FORMULAIRE ===
@@ -121,6 +156,7 @@ $result = $stmt->fetch();
 $numMemb = ($result['max'] ?? 0) + 1;
 
 // === 11. INSERTION EN BASE ===
+<<<<<<< HEAD
 $data = [
     'numMemb' => $numMemb,
     'prenomMemb' => $prenomMemb,
@@ -140,9 +176,33 @@ try {
         $_SESSION['success'] = "Inscription réussie ! Vous pouvez maintenant vous connecter.";
         header('Location: ../../views/frontend/security/login.php');
     }
+=======
+try {
+    $sql = "INSERT INTO MEMBRE (numMemb, prenomMemb, nomMemb, pseudoMemb, eMailMemb, passMemb, dtCreaMemb, accordMemb, numStat) 
+            VALUES (:numMemb, :prenomMemb, :nomMemb, :pseudoMemb, :eMailMemb, :passMemb, :dtCreaMemb, :accordMemb, :numStat)";
+    $stmt = $DB->prepare($sql);
+    $stmt->execute([
+        ':numMemb' => $numMemb,
+        ':prenomMemb' => $prenomMemb,
+        ':nomMemb' => $nomMemb,
+        ':pseudoMemb' => $pseudoMemb,
+        ':eMailMemb' => $eMailMemb,
+        ':passMemb' => $passMemb_hashed,
+        ':dtCreaMemb' => date('Y-m-d H:i:s'),
+        ':accordMemb' => 1,
+        ':numStat' => 3
+    ]);
+    
+    $_SESSION['success'] = "Inscription réussie ! Vous pouvez maintenant vous connecter.";
+    header('Location: ../../views/frontend/security/login.php');
+>>>>>>> 3607ba0048879bf47467f9aaedd5d73e5563c647
 } catch (Exception $e) {
     $_SESSION['error'] = "Erreur lors de l'inscription : " . $e->getMessage();
     header('Location: ../../views/frontend/security/signup.php');
 }
 exit;
+<<<<<<< HEAD
 ?>
+=======
+?>
+>>>>>>> 3607ba0048879bf47467f9aaedd5d73e5563c647

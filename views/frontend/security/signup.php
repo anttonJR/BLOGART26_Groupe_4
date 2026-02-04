@@ -16,6 +16,20 @@ include '../includes/cookie-consent.php';
             <div class="col-md-6">
                 <h1>Inscription</h1>
                 
+                <?php if (isset($_SESSION['success'])): ?>
+                    <div class="alert alert-success">
+                        <p><?= $_SESSION['success'] ?></p>
+                    </div>
+                    <?php unset($_SESSION['success']); ?>
+                <?php endif; ?>
+                
+                <?php if (isset($_SESSION['error'])): ?>
+                    <div class="alert alert-danger">
+                        <p><?= $_SESSION['error'] ?></p>
+                    </div>
+                    <?php unset($_SESSION['error']); ?>
+                <?php endif; ?>
+                
                 <?php if (isset($_SESSION['errors'])): ?>
                     <div class="alert alert-danger">
                         <?php foreach ($_SESSION['errors'] as $error): ?>
@@ -25,7 +39,7 @@ include '../includes/cookie-consent.php';
                     <?php unset($_SESSION['errors']); ?>
                 <?php endif; ?>
                 
-                <form method="POST" action="../../../api/members/create.php" id="form-recaptcha">
+                <form method="POST" action="/BLOGART26/api/members/create.php" id="form-recaptcha">
                     <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
                     <!-- Pseudo -->
                     <div class="mb-3">

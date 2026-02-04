@@ -12,7 +12,7 @@ function isLoggedIn() {
  * @return bool
  */
 function isAdmin() {
-    return isLoggedIn() && isset($_SESSION['user']['numStat']) && $_SESSION['user']['numStat'] == 3;
+    return isLoggedIn() && isset($_SESSION['user']['numStat']) && $_SESSION['user']['numStat'] == 1;
 }
 
 /**
