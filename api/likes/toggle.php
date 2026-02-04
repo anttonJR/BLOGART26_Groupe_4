@@ -1,28 +1,42 @@
 <?php
 session_start();
-header('Content-Type: application/json');
-
 require_once '../../config.php';
+require_once ROOT . '/functions/csrf.php';
+require_once ROOT . '/functions/auth.php';
 
 // Vérifier que la requête est bien en POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['success' => false, 'message' => 'Méthode non autorisée']);
+    $_SESSION['error'] = 'Méthode non autorisée';
+    header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? ROOT_URL . '/index.php'));
     exit;
 }
 
-// Récupérer les données JSON
-$data = json_decode(file_get_contents('php://input'), true);
-$numArt = $data['numArt'] ?? null;
+// Vérifier le token CSRF
+$token = $_POST['csrf_token'] ?? '';
+if (!verifyCSRFToken($token)) {
+    $_SESSION['error'] = 'Token CSRF invalide';
+    header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? ROOT_URL . '/index.php'));
+    exit;
+}
+
+// Vérifier que l'utilisateur est connecté
+if (!isLoggedIn()) {
+    $_SESSION['error'] = 'Vous devez être connecté pour liker';
+    header('Location: ' . ROOT_URL . '/views/frontend/security/login.php');
+    exit;
+}
+
+// Récupérer les données POST (formulaire classique)
+$numArt = $_POST['numArt'] ?? null;
 
 // Validation de base
 if (!$numArt) {
-    echo json_encode(['success' => false, 'message' => 'Article non spécifié']);
+    $_SESSION['error'] = 'Article non spécifié';
+    header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? ROOT_URL . '/index.php'));
     exit;
 }
 
-// Pour la démo, on utilise un ID membre par défaut si pas connecté
-// En production, vérifier l'authentification
-$numMemb = $_SESSION['user']['numMemb'] ?? 1; // ID par défaut pour la démo
+$numMemb = $_SESSION['user']['numMemb'];
 
 try {
     global $DB;
@@ -39,34 +53,25 @@ try {
         $sqlUpdate = "UPDATE LIKEART SET likeA = ? WHERE numMemb = ? AND numArt = ?";
         $stmtUpdate = $DB->prepare($sqlUpdate);
         $stmtUpdate->execute([$newValue, $numMemb, $numArt]);
-        $liked = $newValue == 1;
     } else {
         // Le like n'existe pas → créer
         $sqlInsert = "INSERT INTO LIKEART (numMemb, numArt, likeA) VALUES (?, ?, 1)";
         $stmtInsert = $DB->prepare($sqlInsert);
         $stmtInsert->execute([$numMemb, $numArt]);
-        $liked = true;
     }
     
-    // Compter le nombre total de likes pour cet article
-    $sqlCount = "SELECT COUNT(*) as total FROM LIKEART WHERE numArt = ? AND likeA = 1";
-    $stmtCount = $DB->prepare($sqlCount);
-    $stmtCount->execute([$numArt]);
-    $countResult = $stmtCount->fetch();
-    $totalLikes = $countResult['total'];
-    
-    echo json_encode([
-        'success' => true,
-        'liked' => $liked,
-        'likes' => $totalLikes,
-        'message' => $liked ? 'Article liké !' : 'Like retiré'
-    ]);
+    $_SESSION['success'] = 'Like mis à jour !';
     
 } catch (Exception $e) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Erreur : ' . $e->getMessage()
-    ]);
+    $_SESSION['error'] = 'Erreur : ' . $e->getMessage();
+}
+
+// Rediriger vers la page d'origine (ou l'article si pas de referer)
+$referer = $_SERVER['HTTP_REFERER'] ?? null;
+if ($referer) {
+    header('Location: ' . $referer);
+} else {
+    header('Location: ' . ROOT_URL . '/views/frontend/articles/article1.php?id=' . $numArt);
 }
 exit;
 ?>

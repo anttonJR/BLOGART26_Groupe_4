@@ -1,4 +1,9 @@
 <?php
+// Start session first
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 //define ROOT_PATH
 define('ROOT', __DIR__);
 define('ROOT_URL', 'http://' . $_SERVER['HTTP_HOST'] . '/BLOGART26');
@@ -23,5 +28,3 @@ sql_connect();
 
 //load security
 require_once ROOT . '/config/security.php';
-
-?>

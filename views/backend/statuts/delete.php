@@ -1,34 +1,27 @@
 <?php
-require_once '../../functions/csrf.php';
-include '../../../header.php';
+require_once __DIR__ . '/../../../config.php';
+require_once ROOT . '/functions/auth.php';
+requireAdmin();
 
-if(isset($_GET['numStat'])){
-    $numStat = $_GET['numStat'];
-    $libStat = sql_select("STATUT", "libStat", "numStat = $numStat")[0]['libStat'];
+global $DB;
+
+if (!isset($_GET['id'])) {
+    header('Location: ' . ROOT_URL . '/views/backend/statuts/list.php');
+    exit;
 }
-?>
 
-<!-- Bootstrap form to create a new statut -->
-<div class="container">
-    <div class="row">
-        <div class="col-md-12">
-            <h1>Suppression Statut</h1>
-        </div>
-        <div class="col-md-12">
-            <!-- Form to create a new statut -->
-            <form action="<?php echo ROOT_URL . '/api/statuts/delete.php' ?>" method="post">
-                <?php csrfField(); ?>
-                <div class="form-group">
-                    <label for="libStat">Nom du statut</label>
-                    <input id="numStat" name="numStat" class="form-control" style="display: none" type="text" value="<?php echo($numStat); ?>" readonly="readonly" />
-                    <input id="libStat" name="libStat" class="form-control" type="text" value="<?php echo($libStat); ?>" readonly="readonly" disabled />
-                </div>
-                <br />
-                <div class="form-group mt-2">
-                    <a href="list.php" class="btn btn-primary">List</a>
-                    <button type="submit" class="btn btn-danger">Confirmer delete ?</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+$id = (int)$_GET['id'];
+
+// Ne pas supprimer les statuts de base (1, 2, 3)
+if ($id <= 3) {
+    $_SESSION['error'] = "Impossible de supprimer les statuts de base";
+    header('Location: ' . ROOT_URL . '/views/backend/statuts/list.php');
+    exit;
+}
+
+$stmt = $DB->prepare("DELETE FROM STATUT WHERE numStat = ?");
+$stmt->execute([$id]);
+
+$_SESSION['success'] = "Statut supprimé avec succès";
+header('Location: ' . ROOT_URL . '/views/backend/statuts/list.php');
+exit;

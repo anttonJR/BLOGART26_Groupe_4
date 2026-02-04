@@ -327,7 +327,7 @@ include '../includes/cookie-consent.php';
                 <?php unset($_SESSION['error']); ?>
             <?php endif; ?>
 
-            <form method="POST" action="../../../api/security/login.php">
+            <form method="POST" action="/BLOGART26/api/security/login.php">
                 <div class="mb-4">
                     <label class="form-label">
                         <i class="bi bi-person"></i>

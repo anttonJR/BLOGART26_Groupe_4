@@ -58,7 +58,7 @@ $_SESSION['user'] = [
 $_SESSION['logged_in'] = true;
 
 // Redirection selon le statut
-if ($membre['numStat'] == 3) {
+if ($membre['numStat'] == 1) {
     // Administrateur → Panneau d'administration
     header('Location: ../../views/backend/dashboard.php');
 } elseif ($membre['numStat'] == 2) {

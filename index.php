@@ -1,5 +1,7 @@
 <?php 
 require_once 'config.php';
+require_once ROOT . '/functions/csrf.php';
+require_once ROOT . '/functions/auth.php';
 
 // Récupérer tous les articles avec leur nombre de likes et informations thématiques
 $articles = sql_select(
@@ -717,10 +719,20 @@ $keywords = sql_select(
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center mt-auto">
                                         <div>
-                                            <button class="btn btn-outline btn-sm btn-like" data-article-id="<?= $article['numArt'] ?>">
-                                                <i class="bi bi-heart"></i> J'aime
-                                            </button>
-                                            <span class="like-count ms-2"><strong><?= $article['nb_likes'] ?></strong> likes</span>
+                                            <?php if (isLoggedIn()): ?>
+                                                <form method="POST" action="<?= ROOT_URL ?>/api/likes/toggle.php" class="d-inline">
+                                                    <?php csrfField(); ?>
+                                                    <input type="hidden" name="numArt" value="<?= $article['numArt'] ?>">
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                        <i class="bi bi-heart"></i> J'aime
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <a href="<?= ROOT_URL ?>/views/frontend/security/login.php" class="btn btn-outline-secondary btn-sm">
+                                                    <i class="bi bi-heart"></i> J'aime
+                                                </a>
+                                            <?php endif; ?>
+                                            <span class="ms-2"><strong><?= $article['nb_likes'] ?></strong> likes</span>
                                         </div>
                                         <a href="/BLOGART26/views/frontend/articles/article1.php?id=<?= $article['numArt'] ?>" class="btn btn-primary btn-sm">Lire</a>
                                     </div>
@@ -882,42 +894,8 @@ $keywords = sql_select(
             });
         });
 
-        // Like button functionality
+        // Like button functionality - now handled by form POST
         document.addEventListener('DOMContentLoaded', () => {
-            const likeButtons = document.querySelectorAll('.btn-like');
-            
-            likeButtons.forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const articleId = this.dataset.articleId;
-                    
-                    // Appel AJAX pour liker/disliker
-                    fetch('api/likes/toggle.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ numArt: articleId })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            this.classList.toggle('liked');
-                            const likeCount = this.parentElement.querySelector('.like-count');
-                            if (likeCount) {
-                                likeCount.innerHTML = `<strong>${data.likes}</strong> likes`;
-                            }
-                            if (this.classList.contains('liked')) {
-                                this.innerHTML = '<i class="bi bi-heart-fill"></i> J\'aime';
-                            } else {
-                                this.innerHTML = '<i class="bi bi-heart"></i> J\'aime';
-                            }
-                        }
-                    })
-                    .catch(error => console.error('Error:', error));
-                });
-            });
-
             // Smooth scroll for navigation links
             document.querySelectorAll('a[href^="#"]').forEach(anchor => {
                 anchor.addEventListener('click', function (e) {

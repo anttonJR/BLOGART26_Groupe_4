@@ -1,28 +1,51 @@
 <?php
-require_once '../../functions/csrf.php';
-include '../../../header.php';
+$pageTitle = 'Nouveau statut';
+require_once __DIR__ . '/../includes/header.php';
+require_once ROOT . '/functions/auth.php';
+requireAdmin();
+
+global $DB;
+$error = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $libStat = trim($_POST['libStat'] ?? '');
+    
+    if (empty($libStat)) {
+        $error = "Le libellé est requis";
+    } else {
+        $stmt = $DB->prepare("INSERT INTO STATUT (libStat) VALUES (?)");
+        $stmt->execute([$libStat]);
+        $_SESSION['success'] = "Statut créé avec succès";
+        header('Location: ' . ROOT_URL . '/views/backend/statuts/list.php');
+        exit;
+    }
+}
 ?>
 
-<!-- Bootstrap form to create a new statut -->
-<div class="container">
-    <div class="row">
-        <div class="col-md-12">
-            <h1>Création nouveau Statut</h1>
-        </div>
-        <div class="col-md-12">
-            <!-- Form to create a new statut -->
-            <form action="<?php echo ROOT_URL . '/api/statuts/create.php' ?>" method="post">
-                <?php csrfField(); ?>
-                <div class="form-group">
-                    <label for="libStat">Nom du statut</label>
-                    <input id="libStat" name="libStat" class="form-control" type="text" autofocus="autofocus" />
-                </div>
-                <br />
-                <div class="form-group mt-2">
-                    <a href="list.php" class="btn btn-primary">List</a>
-                    <button type="submit" class="btn btn-success">Confirmer create ?</button>
-                </div>
-            </form>
-        </div>
+<div class="page-header">
+    <h1><i class="bi bi-plus-lg me-2"></i>Nouveau statut</h1>
+    <a href="<?= ROOT_URL ?>/views/backend/statuts/list.php" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Retour
+    </a>
+</div>
+
+<?php if ($error): ?>
+    <div class="alert alert-danger"><?= $error ?></div>
+<?php endif; ?>
+
+<div class="admin-card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="mb-3">
+                <label for="libStat" class="form-label">Libellé *</label>
+                <input type="text" class="form-control" id="libStat" name="libStat" required 
+                       value="<?= htmlspecialchars($_POST['libStat'] ?? '') ?>">
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg me-1"></i>Créer
+            </button>
+        </form>
     </div>
 </div>
+
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>

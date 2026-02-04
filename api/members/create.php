@@ -1,28 +1,12 @@
 <?php
 session_start();
-
 require_once '../../config.php';
-require_once '../../functions/csrf.php';
-
-global $DB;
-if (!$DB) {
-    $_SESSION['errors'] = ["Connexion à la base de données impossible."];
-    header('Location: ../../views/frontend/security/signup.php');
-    exit;
-}
-
-$token = $_POST['csrf_token'] ?? '';
-if (!verifyCSRFToken($token)) {
-    $_SESSION['errors'] = ["Token CSRF invalide"];
-    header('Location: ../../views/frontend/security/signup.php');
-    exit;
-}
-
 require_once '../../functions/query/insert.php';
 require_once '../../functions/query/select.php';
 
+global $DB;
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    $_SESSION['errors'] = ["Méthode non autorisée"];
     header('Location: ../../views/frontend/security/signup.php');
     exit;
 }
@@ -47,6 +31,7 @@ if (empty($pseudoMemb)) {
 } elseif (strlen($pseudoMemb) > 70) {
     $errors[] = "Le pseudo ne peut pas dépasser 70 caractères";
 } else {
+    // Vérifier l'unicité du pseudo
     $sql = "SELECT COUNT(*) as count FROM MEMBRE WHERE pseudoMemb = ?";
     $stmt = $DB->prepare($sql);
     $stmt->execute([$pseudoMemb]);
@@ -73,19 +58,10 @@ if (empty($eMailMemb)) {
     $errors[] = "L'email n'est pas valide";
 } elseif ($eMailMemb !== $eMailMemb_confirm) {
     $errors[] = "Les deux emails ne correspondent pas";
-} else {
-    $sql = "SELECT COUNT(*) as count FROM MEMBRE WHERE eMailMemb = ?";
-    $stmt = $DB->prepare($sql);
-    $stmt->execute([$eMailMemb]);
-    $result = $stmt->fetch();
-    
-    if ($result['count'] > 0) {
-        $errors[] = "Cet email est déjà utilisé";
-    }
 }
 
 // === 5. VALIDATION PASSWORD ===
-$passwordRegex = '/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,15}$/';
+$passwordRegex = '/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,15}$/';
 
 if (empty($passMemb)) {
     $errors[] = "Le mot de passe est obligatoire";
@@ -100,55 +76,35 @@ if ($accordMemb != 1) {
     $errors[] = "Vous devez accepter le stockage de vos données pour vous inscrire";
 }
 
-// === 7. VALIDATION reCAPTCHA ===
-if (isset($_POST['g-recaptcha-response'])) {
-    $recaptchaToken = $_POST['g-recaptcha-response'];
-    
-    if (empty($recaptchaToken)) {
-        $errors[] = "Token reCAPTCHA vide";
-    } else {
-        $secretKey = $_ENV['RECAPTCHA_SECRET_KEY'] ?? getenv('RECAPTCHA_SECRET_KEY');
+// === 7. VALIDATION reCAPTCHA (optionnel si clés non configurées) ===
+$recaptchaSecret = getenv('RECAPTCHA_SECRET_KEY');
+if ($recaptchaSecret && $recaptchaSecret !== 'your_secret_key_here') {
+    if (isset($_POST['g-recaptcha-response'])) {
+        $token = $_POST['g-recaptcha-response'];
+        $url = 'https://www.google.com/recaptcha/api/siteverify';
+        $data = [
+            'secret' => $recaptchaSecret,
+            'response' => $token
+        ];
         
-        if (empty($secretKey)) {
-            $errors[] = "Clé secrète reCAPTCHA non configurée";
-        } else {
-            $url = 'https://www.google.com/recaptcha/api/siteverify';
-            $data = [
-                'secret' => $secretKey,
-                'response' => $recaptchaToken
-            ];
-            
-            $options = [
-                'http' => [
-                    'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
-                    'method' => 'POST',
-                    'content' => http_build_query($data),
-                    'timeout' => 10
-                ]
-            ];
-            
-            $context = stream_context_create($options);
-            $result = @file_get_contents($url, false, $context);
-            
-            if ($result === false) {
-                $errors[] = "Impossible de contacter le serveur reCAPTCHA";
-            } else {
-                $response = json_decode($result);
-                
-                if (!$response || empty($response->success)) {
-                    if (isset($response->{'error-codes'}) && in_array('timeout-or-duplicate', $response->{'error-codes'}, true)) {
-                        $errors[] = "Token reCAPTCHA expiré. Rechargez la page et réessayez.";
-                    } else {
-                        $errors[] = "Validation reCAPTCHA échouée. Réessayez.";
-                    }
-                } elseif (isset($response->score) && $response->score < 0.5) {
-                    $errors[] = "Score reCAPTCHA trop bas. Réessayez.";
-                }
-            }
+        $options = [
+            'http' => [
+                'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
+                'method' => 'POST',
+                'content' => http_build_query($data)
+            ]
+        ];
+        
+        $context = stream_context_create($options);
+        $result = file_get_contents($url, false, $context);
+        $response = json_decode($result);
+        
+        if (!$response->success) {
+            $errors[] = "Validation reCAPTCHA échouée. Êtes-vous un robot ?";
         }
+    } else {
+        $errors[] = "Validation reCAPTCHA manquante";
     }
-} else {
-    $errors[] = "Validation reCAPTCHA manquante";
 }
 
 // === 8. SI ERREURS, RETOUR AU FORMULAIRE ===
@@ -169,40 +125,27 @@ $result = $stmt->fetch();
 $numMemb = ($result['max'] ?? 0) + 1;
 
 // === 11. INSERTION EN BASE ===
-$data = [
-    'numMemb' => $numMemb,
-    'prenomMemb' => $prenomMemb,
-    'nomMemb' => $nomMemb,
-    'pseudoMemb' => $pseudoMemb,
-    'eMailMemb' => $eMailMemb,
-    'passMemb' => $passMemb_hashed,
-    'dtCreaMemb' => date('Y-m-d H:i:s'),
-    'dtMajMemb' => null,
-    'accordMemb' => 1,
-    'numStat' => 1
-];
-
 try {
-    $columns = implode(', ', array_keys($data));
-    $placeholders = ':' . implode(', :', array_keys($data));
-    
-    $sql = "INSERT INTO MEMBRE ($columns) VALUES ($placeholders)";
+    $sql = "INSERT INTO MEMBRE (numMemb, prenomMemb, nomMemb, pseudoMemb, eMailMemb, passMemb, dtCreaMemb, accordMemb, numStat) 
+            VALUES (:numMemb, :prenomMemb, :nomMemb, :pseudoMemb, :eMailMemb, :passMemb, :dtCreaMemb, :accordMemb, :numStat)";
     $stmt = $DB->prepare($sql);
+    $stmt->execute([
+        ':numMemb' => $numMemb,
+        ':prenomMemb' => $prenomMemb,
+        ':nomMemb' => $nomMemb,
+        ':pseudoMemb' => $pseudoMemb,
+        ':eMailMemb' => $eMailMemb,
+        ':passMemb' => $passMemb_hashed,
+        ':dtCreaMemb' => date('Y-m-d H:i:s'),
+        ':accordMemb' => 1,
+        ':numStat' => 3
+    ]);
     
-    foreach ($data as $key => $value) {
-        $stmt->bindValue(":$key", $value);
-    }
-    
-    $result = $stmt->execute();
-    
-    if ($result) {
-        $_SESSION['success'] = "Inscription réussie ! Vous pouvez maintenant vous connecter.";
-        header('Location: ../../views/frontend/security/login.php');
-        exit;
-    }
+    $_SESSION['success'] = "Inscription réussie ! Vous pouvez maintenant vous connecter.";
+    header('Location: ../../views/frontend/security/login.php');
 } catch (Exception $e) {
-    $_SESSION['errors'] = ["Erreur lors de l'inscription : " . $e->getMessage()];
+    $_SESSION['error'] = "Erreur lors de l'inscription : " . $e->getMessage();
     header('Location: ../../views/frontend/security/signup.php');
-    exit;
 }
+exit;
 ?>

@@ -1,187 +1,113 @@
 <?php
-session_start();
-require_once '../../functions/csrf.php';
-?>
-<?php
+$pageTitle = 'Nouvel article';
+require_once __DIR__ . '/../includes/header.php';
+require_once ROOT . '/functions/auth.php';
+requireAdmin();
+
+global $DB;
+$error = '';
+
 // Charger les thématiques
-require_once '../../functions/query/select.php';
-$thematiques = selectAll('THEMATIQUE', 'numThem');
+$stmtThem = $DB->query("SELECT * FROM THEMATIQUE ORDER BY libThem");
+$thematiques = $stmtThem->fetchAll();
+
+// Charger les mots-clés
+$stmtMot = $DB->query("SELECT * FROM MOTCLE ORDER BY libMotCle");
+$motcles = $stmtMot->fetchAll();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $libTitrArt = trim($_POST['libTitrArt'] ?? '');
+    $libChapoArt = trim($_POST['libChapoArt'] ?? '');
+    $libAccrochArt = trim($_POST['libAccrochArt'] ?? '');
+    $parag1Art = trim($_POST['parag1Art'] ?? '');
+    $numThem = (int)($_POST['numThem'] ?? 0);
+    $numMemb = $_SESSION['user']['numMemb'] ?? 1;
+    $selectedMotcles = $_POST['motcles'] ?? [];
+    
+    if (empty($libTitrArt)) {
+        $error = "Le titre est requis";
+    } else {
+        $stmt = $DB->prepare("INSERT INTO ARTICLE (libTitrArt, libChapoArt, libAccrochArt, parag1Art, dtCreaArt, numThem, numMemb) VALUES (?, ?, ?, ?, NOW(), ?, ?)");
+        $stmt->execute([$libTitrArt, $libChapoArt, $libAccrochArt, $parag1Art, $numThem ?: null, $numMemb]);
+        $numArt = $DB->lastInsertId();
+        
+        // Associer les mots-clés (table MOTCLEARTICLE)
+        foreach ($selectedMotcles as $numMotCle) {
+            $stmtMC = $DB->prepare("INSERT INTO MOTCLEARTICLE (numArt, numMotCle) VALUES (?, ?)");
+            $stmtMC->execute([$numArt, $numMotCle]);
+        }
+        
+        $_SESSION['success'] = "Article créé avec succès";
+        header('Location: ' . ROOT_URL . '/views/backend/articles/list.php');
+        exit;
+    }
+}
 ?>
 
-<!-- Thématique -->
-<div class="mb-3">
-    <label class="form-label">Thématique *</label>
-    <select name="numThem" class="form-control" required>
-        <option value="">Sélectionnez une thématique</option>
-        <?php foreach ($thematiques as $them): ?>
-            <option value="<?= $them['numThem'] ?>">
-                <?= htmlspecialchars($them['libThem']) ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
+<div class="page-header">
+    <h1><i class="bi bi-plus-lg me-2"></i>Nouvel article</h1>
+    <a href="<?= ROOT_URL ?>/views/backend/articles/list.php" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Retour
+    </a>
 </div>
 
-<!-- IMPORTANT : Ajouter enctype au formulaire -->
-<form method="POST" action="../../api/articles/create.php" enctype="multipart/form-data">
-    <?php csrfField(); ?>
+<?php if ($error): ?>
+    <div class="alert alert-danger"><?= $error ?></div>
+<?php endif; ?>
 
-<!-- Ajouter après le champ Thématique -->
-<div class="mb-3">
-    <label class="form-label">Image de l'article</label>
-    <input type="file" 
-           name="imageArt" 
-           class="form-control" 
-           accept="image/jpeg,image/png,image/gif">
-    <small class="form-text text-muted">
-        Formats acceptés : JPG, PNG, GIF - Taille max : 5 Mo
-    </small>
-</div>
-
-<?php
-// Charger tous les mots-clés
-$motscles = selectAll('MOTCLE', 'numMotCle');
-?>
-
-<!-- Mots-clés -->
-<div class="mb-3">
-    <label class="form-label">Mots-clés (sélectionnez au moins 3) *</label>
-    <div class="border p-3" style="max-height: 300px; overflow-y: auto;">
-        <?php foreach ($motscles as $mc): ?>
-            <div class="form-check">
-                <input type="checkbox" 
-                       name="motscles[]" 
-                       value="<?= $mc['numMotCle'] ?>" 
-                       class="form-check-input" 
-                       id="mc_<?= $mc['numMotCle'] ?>">
-                <label class="form-check-label" for="mc_<?= $mc['numMotCle'] ?>">
-                    <?= htmlspecialchars($mc['libMotCle']) ?>
-                </label>
-            </div>
-        <?php endforeach; ?>
-    </div>
-    <small class="form-text text-muted">
-        Minimum 3 mots-clés requis
-    </small>
-</div>
-
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Créer un article</title>
-    <link rel="stylesheet" href="../../../assets/css/bootstrap.min.css">
-</head>
-<body>
-    <div class="container mt-5">
-        <h1>Nouvel article</h1>
-        
-       <?php if (isset($_SESSION['errors'])): ?> <!-- Si la session contient des erreurs -->
-            <div class="alert alert-danger"> <!-- Bloc d'alerte Bootstrap (style "erreur" rouge) -->
-                <?php foreach ($_SESSION['errors'] as $error): ?> <!-- Parcourt chaque message d'erreur -->
-                    <p><?= $error ?></p> <!-- Affiche l'erreur (raccourci de echo) -->
-                <?php endforeach; ?> <!-- Fin de la boucle foreach -->
-            </div>
-            <?php unset($_SESSION['errors']); ?> <!-- Supprime les erreurs après affichage (message "flash") -->
-        <?php endif; ?> <!-- Fin du if -->
-
-        
-        <form method="POST" action="../../api/articles/create.php">
-            <?php csrfField(); ?>
-            <!-- Numéro d'article -->
+<div class="admin-card">
+    <div class="card-body">
+        <form method="POST">
             <div class="mb-3">
-                <label class="form-label">Numéro d'article *</label>
-                <input type="number" 
-                       name="numArt" 
-                       class="form-control" 
-                       required>
+                <label for="libTitrArt" class="form-label">Titre *</label>
+                <input type="text" class="form-control" id="libTitrArt" name="libTitrArt" required 
+                       value="<?= htmlspecialchars($_POST['libTitrArt'] ?? '') ?>">
             </div>
-            
-            <!-- Titre -->
             <div class="mb-3">
-                <label class="form-label">Titre de l'article *</label>
-                <input type="text" 
-                       name="libTltArt" 
-                       class="form-control" 
-                       maxlength="100" 
-                       required>
+                <label for="libChapoArt" class="form-label">Chapô</label>
+                <textarea class="form-control" id="libChapoArt" name="libChapoArt" rows="2"><?= htmlspecialchars($_POST['libChapoArt'] ?? '') ?></textarea>
             </div>
-            
-            <!-- Chapô -->
             <div class="mb-3">
-                <label class="form-label">Chapô (introduction) *</label>
-                <textarea name="libChapArt" 
-                          class="form-control" 
-                          rows="3" 
-                          required></textarea>
+                <label for="libAccrochArt" class="form-label">Accroche</label>
+                <textarea class="form-control" id="libAccrochArt" name="libAccrochArt" rows="2"><?= htmlspecialchars($_POST['libAccrochArt'] ?? '') ?></textarea>
             </div>
-            
-            <!-- Accroche -->
             <div class="mb-3">
-                <label class="form-label">Accroche</label>
-                <input type="text" 
-                       name="libAccrochArt" 
-                       class="form-control" 
-                       maxlength="100">
+                <label for="parag1Art" class="form-label">Contenu</label>
+                <textarea class="form-control" id="parag1Art" name="parag1Art" rows="10"><?= htmlspecialchars($_POST['parag1Art'] ?? '') ?></textarea>
             </div>
-            
-            <!-- Paragraphe 1 -->
-            <div class="mb-3">
-                <label class="form-label">Paragraphe 1 *</label>
-                <textarea name="parag1Art" 
-                          class="form-control" 
-                          rows="5" 
-                          required></textarea>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="numThem" class="form-label">Thématique</label>
+                    <select class="form-select" id="numThem" name="numThem">
+                        <option value="">-- Sélectionner --</option>
+                        <?php foreach ($thematiques as $them): ?>
+                            <option value="<?= $them['numThem'] ?>" <?= (($_POST['numThem'] ?? '') == $them['numThem']) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($them['libThem']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Mots-clés</label>
+                    <div class="border rounded p-3" style="max-height: 150px; overflow-y: auto;">
+                        <?php foreach ($motcles as $mot): ?>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="motcles[]" 
+                                       value="<?= $mot['numMotCle'] ?>" id="mot<?= $mot['numMotCle'] ?>"
+                                       <?= in_array($mot['numMotCle'], $_POST['motcles'] ?? []) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="mot<?= $mot['numMotCle'] ?>">
+                                    <?= htmlspecialchars($mot['libMotCle']) ?>
+                                </label>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             </div>
-            
-            <!-- Titre éditorial -->
-            <div class="mb-3">
-                <label class="form-label">Titre éditorial (sous-titre)</label>
-                <input type="text" 
-                       name="libSsTitl1Art" 
-                       class="form-control" 
-                       maxlength="100">
-            </div>
-            
-            <!-- Paragraphe 2 -->
-            <div class="mb-3">
-                <label class="form-label">Paragraphe 2</label>
-                <textarea name="parag2Art" 
-                          class="form-control" 
-                          rows="5"></textarea>
-            </div>
-            
-            <!-- Paragraphe 3 -->
-            <div class="mb-3">
-                <label class="form-label">Paragraphe 3</label>
-                <textarea name="parag3Art" 
-                          class="form-control" 
-                          rows="5"></textarea>
-            </div>
-            
-            <!-- Conclusion -->
-            <div class="mb-3">
-                <label class="form-label">Conclusion</label>
-                <textarea name="libConcArt" 
-                          class="form-control" 
-                          rows="3"></textarea>
-            </div>
-            
-            <button type="submit" class="btn btn-primary">Créer l'article</button>
-            <a href="list.php" class="btn btn-secondary">Annuler</a>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg me-1"></i>Créer
+            </button>
         </form>
     </div>
-
-    <!-- Aide BBCode -->
-<div class="alert alert-info">
-    <h5>Guide BBCode</h5>
-    <ul>
-        <li><code>[b]texte[/b]</code> → <strong>Gras</strong></li>
-        <li><code>[i]texte[/i]</code> → <em>Italique</em></li>
-        <li><code>[u]texte[/u]</code> → <u>Souligné</u></li>
-        <li><code>[url=https://example.com]Cliquez` ici[/url]</code> → Lien</li>
-        <li><code>[anchor]section1[/anchor]</code> → Ancre</li>
-        <li><code>[goto=section1]Aller à section 1[/goto]</code> → Lien vers ancre</li>
-        <li>Emojis : <code>:smile: :wink: :heart: :star:</code></li>
-    </ul>
 </div>
-</body>
-</html>
+
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>

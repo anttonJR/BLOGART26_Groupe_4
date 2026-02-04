@@ -1,24 +1,26 @@
 <?php
 session_start();
-require_once '../../functions/csrf.php';
+require_once '../../config.php';
+require_once ROOT . '/functions/csrf.php';
+require_once ROOT . '/functions/auth.php';
 
+// Vérifier le token CSRF
 $token = $_POST['csrf_token'] ?? '';
 if (!verifyCSRFToken($token)) {
-    die('Token CSRF invalide');
+    $_SESSION['comment_error'] = 'Token CSRF invalide';
+    header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? ROOT_URL . '/index.php'));
+    exit;
 }
-
-require_once '../../functions/auth.php';
-require_once '../../functions/query/insert.php';
 
 // Vérifier que l'utilisateur est connecté
 if (!isLoggedIn()) {
     $_SESSION['comment_error'] = "Vous devez être connecté pour commenter";
-    header('Location: ' . $_SERVER['HTTP_REFERER'] ?? '../../views/frontend/index.php');
+    header('Location: ' . ROOT_URL . '/views/frontend/security/login.php');
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ../../views/frontend/index.php');
+    header('Location: ' . ROOT_URL . '/index.php');
     exit;
 }
 
@@ -44,39 +46,29 @@ if (strlen($libCom) < 10) {
 
 if (!empty($errors)) {
     $_SESSION['comment_error'] = implode(', ', $errors);
-    header('Location: ../../views/frontend/articles/article1.php?id=' . $numArt);
+    header('Location: ' . ROOT_URL . '/views/frontend/articles/article1.php?id=' . $numArt);
     exit;
 }
 
 // Génération du numéro de commentaire
-$pdo = getConnection();
+global $DB;
 $sql = "SELECT MAX(numCom) as max FROM COMMENT";
-$stmt = $pdo->query($sql);
+$stmt = $DB->query($sql);
 $result = $stmt->fetch();
 $numCom = ($result['max'] ?? 0) + 1;
 
-// Préparation des données
-$data = [
-    'numCom' => $numCom,
-    'dtCreaCoM' => date('Y-m-d H:i:s'),
-    'libCom' => $libCom,
-    'dtModCom' => null,
-    'attModOK' => 0,  // Non validé par défaut
-    'notifComKOAff' => null,
-    'dtDelLogCom' => null,
-    'numMemb' => $numMemb,
-    'numArt' => $numArt
-];
-
 try {
-    $result = insert('COMMENT', $data);
-    if ($result) {
-        $_SESSION['comment_success'] = "Votre commentaire a été envoyé. Il sera visible après validation par un modérateur.";
-    }
+    // Insertion du commentaire
+    $sqlInsert = "INSERT INTO COMMENT (numCom, dtCreaCom, libCom, attModOK, numMemb, numArt) 
+                  VALUES (?, NOW(), ?, 0, ?, ?)";
+    $stmtInsert = $DB->prepare($sqlInsert);
+    $stmtInsert->execute([$numCom, $libCom, $numMemb, $numArt]);
+    
+    $_SESSION['comment_success'] = "Votre commentaire a été envoyé. Il sera visible après validation par un modérateur.";
 } catch (Exception $e) {
     $_SESSION['comment_error'] = "Erreur : " . $e->getMessage();
 }
 
-header('Location: ../../views/frontend/articles/article1.php?id=' . $numArt);
+header('Location: ' . ROOT_URL . '/views/frontend/articles/article1.php?id=' . $numArt);
 exit;
 ?>

@@ -22,10 +22,10 @@ $stmtStats = $DB->query($sqlStats);
 $stats = $stmtStats->fetch();
 
 // Articles les plus likés
-$sqlTopLiked = "SELECT a.numArt, a.libTltArt, COUNT(l.numMemb) as nb_likes
+$sqlTopLiked = "SELECT a.numArt, a.libTitrArt, COUNT(l.numMemb) as nb_likes
                 FROM ARTICLE a
                 LEFT JOIN LIKEART l ON a.numArt = l.numArt AND l.likeA = 1
-                GROUP BY a.numArt, a.libTltArt
+                GROUP BY a.numArt, a.libTitrArt
                 ORDER BY nb_likes DESC
                 LIMIT 5";
 
@@ -33,19 +33,19 @@ $stmtTopLiked = $DB->query($sqlTopLiked);
 $topLiked = $stmtTopLiked->fetchAll();
 
 // Derniers commentaires en attente
-$sqlPendingComments = "SELECT c.*, m.pseudoMemb, a.libTltArt
+$sqlPendingComments = "SELECT c.*, m.pseudoMemb, a.libTitrArt
                        FROM COMMENT c
                        INNER JOIN MEMBRE m ON c.numMemb = m.numMemb
                        INNER JOIN ARTICLE a ON c.numArt = a.numArt
                        WHERE c.attModOK = 0 AND c.dtDelLogCom IS NULL
-                       ORDER BY c.dtCreaCoM DESC
+                       ORDER BY c.dtCreaCom DESC
                        LIMIT 5";
 
 $stmtPending = $DB->query($sqlPendingComments);
 $pendingComments = $stmtPending->fetchAll();
 
 // Derniers articles
-$sqlRecentArticles = "SELECT a.numArt, a.libTltArt, a.dtCreaArt, t.libThem
+$sqlRecentArticles = "SELECT a.numArt, a.libTitrArt, a.dtCreaArt, t.libThem
                       FROM ARTICLE a
                       LEFT JOIN THEMATIQUE t ON a.numThem = t.numThem
                       ORDER BY a.dtCreaArt DESC
@@ -112,7 +112,6 @@ $recentArticles = $stmtRecent->fetchAll();
     </div>
     <div class="card-body">
         <div class="quick-links">
-            <!-- Contenu -->
             <a href="<?= ROOT_URL ?>/views/backend/articles/list.php" class="quick-link-card">
                 <i class="bi bi-file-earmark-text"></i>
                 <h6>Articles</h6>
@@ -128,8 +127,6 @@ $recentArticles = $stmtRecent->fetchAll();
                 <h6>Mots-clés</h6>
                 <small><?= $stats['nb_motscles'] ?> mot(s)-clé(s)</small>
             </a>
-            
-            <!-- Interactions -->
             <a href="<?= ROOT_URL ?>/views/backend/comments/list.php" class="quick-link-card">
                 <i class="bi bi-chat-left-text"></i>
                 <h6>Commentaires</h6>
@@ -145,8 +142,6 @@ $recentArticles = $stmtRecent->fetchAll();
                 <h6>Likes</h6>
                 <small><?= $stats['nb_likes_total'] ?> like(s)</small>
             </a>
-            
-            <!-- Administration -->
             <a href="<?= ROOT_URL ?>/views/backend/members/list.php" class="quick-link-card">
                 <i class="bi bi-people"></i>
                 <h6>Membres</h6>
@@ -188,8 +183,8 @@ $recentArticles = $stmtRecent->fetchAll();
                         <?php foreach ($pendingComments as $com): ?>
                             <div class="list-group-item">
                                 <div class="d-flex justify-content-between align-items-start mb-1">
-                                    <strong class="text-truncate me-2"><?= htmlspecialchars($com['libTltArt']) ?></strong>
-                                    <small class="text-muted"><?= date('d/m/Y H:i', strtotime($com['dtCreaCoM'])) ?></small>
+                                    <strong class="text-truncate me-2"><?= htmlspecialchars($com['libTitrArt']) ?></strong>
+                                    <small class="text-muted"><?= date('d/m/Y H:i', strtotime($com['dtCreaCom'])) ?></small>
                                 </div>
                                 <p class="mb-1 text-truncate-2 small"><?= htmlspecialchars(substr($com['libCom'], 0, 100)) ?>...</p>
                                 <small class="text-muted">
@@ -219,7 +214,7 @@ $recentArticles = $stmtRecent->fetchAll();
                         <p>Aucun like pour le moment</p>
                     </div>
                 <?php else: ?>
-                    <table class="table admin-table">
+                    <table class="table admin-table mb-0">
                         <thead>
                             <tr>
                                 <th>#</th>
@@ -231,15 +226,11 @@ $recentArticles = $stmtRecent->fetchAll();
                             <?php foreach ($topLiked as $index => $art): ?>
                                 <tr>
                                     <td>
-                                        <span class="badge bg-<?= $index === 0 ? 'warning' : ($index === 1 ? 'secondary' : ($index === 2 ? 'danger' : 'light text-dark')) ?>">
+                                        <span class="badge bg-<?= $index === 0 ? 'warning' : ($index === 1 ? 'secondary' : 'light text-dark') ?>">
                                             <?= $index + 1 ?>
                                         </span>
                                     </td>
-                                    <td>
-                                        <a href="<?= ROOT_URL ?>/views/backend/articles/edit.php?id=<?= $art['numArt'] ?>" class="text-decoration-none">
-                                            <?= htmlspecialchars($art['libTltArt']) ?>
-                                        </a>
-                                    </td>
+                                    <td><?= htmlspecialchars($art['libTitrArt']) ?></td>
                                     <td class="text-end">
                                         <span class="badge bg-danger">
                                             <i class="bi bi-heart-fill me-1"></i><?= $art['nb_likes'] ?>
@@ -265,7 +256,7 @@ $recentArticles = $stmtRecent->fetchAll();
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table admin-table">
+            <table class="table admin-table mb-0">
                 <thead>
                     <tr>
                         <th>Titre</th>
@@ -277,9 +268,7 @@ $recentArticles = $stmtRecent->fetchAll();
                 <tbody>
                     <?php foreach ($recentArticles as $art): ?>
                         <tr>
-                            <td>
-                                <strong><?= htmlspecialchars($art['libTltArt']) ?></strong>
-                            </td>
+                            <td><strong><?= htmlspecialchars($art['libTitrArt']) ?></strong></td>
                             <td>
                                 <?php if ($art['libThem']): ?>
                                     <span class="badge bg-info"><?= htmlspecialchars($art['libThem']) ?></span>
@@ -287,20 +276,11 @@ $recentArticles = $stmtRecent->fetchAll();
                                     <span class="text-muted">—</span>
                                 <?php endif; ?>
                             </td>
-                            <td>
-                                <small class="text-muted">
-                                    <?= date('d/m/Y', strtotime($art['dtCreaArt'])) ?>
-                                </small>
-                            </td>
+                            <td><small class="text-muted"><?= date('d/m/Y', strtotime($art['dtCreaArt'])) ?></small></td>
                             <td class="text-end">
                                 <div class="btn-group-actions">
-                                    <a href="<?= ROOT_URL ?>/views/backend/articles/edit.php?id=<?= $art['numArt'] ?>" 
-                                       class="btn btn-action btn-outline-primary" title="Modifier">
+                                    <a href="<?= ROOT_URL ?>/views/backend/articles/edit.php?id=<?= $art['numArt'] ?>" class="btn btn-action btn-outline-primary" title="Modifier">
                                         <i class="bi bi-pencil"></i>
-                                    </a>
-                                    <a href="<?= ROOT_URL ?>/views/backend/articles/delete.php?id=<?= $art['numArt'] ?>" 
-                                       class="btn btn-action btn-outline-danger" title="Supprimer">
-                                        <i class="bi bi-trash"></i>
                                     </a>
                                 </div>
                             </td>
