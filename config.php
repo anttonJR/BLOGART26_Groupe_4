@@ -6,7 +6,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 //define ROOT_PATH
 define('ROOT', __DIR__);
-define('ROOT_URL', 'http://' . $_SERVER['HTTP_HOST'] . '/BLOGART26');
+define('ROOT_URL', (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . '/BLOGART26');
 
 //Load env
 require_once ROOT . '/includes/libs/DotEnv.php';

@@ -21,6 +21,47 @@ if (empty($pseudoMemb) || empty($passMemb)) {
     exit;
 }
 
+// Vérification du reCAPTCHA v3
+$recaptcha_token = $_POST['g-recaptcha-response'] ?? '';
+if (empty($recaptcha_token)) {
+    $_SESSION['error'] = "Vérification de sécurité échouée. Veuillez réessayer.";
+    header('Location: ../../views/frontend/security/login.php');
+    exit;
+}
+
+$recaptcha_secret = getenv('RECAPTCHA_SECRET_KEY');
+$recaptcha_threshold = floatval(getenv('RECAPTCHA_SCORE_THRESHOLD') ?: 0.5);
+
+$response = @file_get_contents('https://www.google.com/recaptcha/api/siteverify', false, stream_context_create([
+    'http' => [
+        'method' => 'POST',
+        'header' => 'Content-type: application/x-www-form-urlencoded' . "\r\n",
+        'content' => http_build_query(['secret' => $recaptcha_secret, 'response' => $recaptcha_token])
+    ]
+]));
+
+if ($response === false) {
+    $_SESSION['error'] = "Erreur de vérification de sécurité";
+    header('Location: ../../views/frontend/security/login.php');
+    exit;
+}
+
+$recaptcha_result = json_decode($response);
+if (!$recaptcha_result->success || $recaptcha_result->score < $recaptcha_threshold) {
+    // Logs de débogage
+    if (getenv('APP_DEBUG') == 'true') {
+        error_log("reCAPTCHA v3 - Login: success=" . ($recaptcha_result->success ? 'true' : 'false') . ", score=" . ($recaptcha_result->score ?? 'N/A') . ", threshold=" . $recaptcha_threshold);
+    }
+    $_SESSION['error'] = "Vérification de sécurité échouée. Vous semblez être un bot.";
+    header('Location: ../../views/frontend/security/login.php');
+    exit;
+}
+
+// Logs de débogage - Succès
+if (getenv('APP_DEBUG') == 'true') {
+    error_log("reCAPTCHA v3 - Login réussi: score=" . $recaptcha_result->score);
+}
+
 // Recherche du membre en BDD
 $sql = "SELECT m.*, s.libStat 
         FROM MEMBRE m 

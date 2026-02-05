@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once '../../../config.php';
 require_once '../../../functions/csrf.php';
 include '../includes/cookie-consent.php';
 ?>
@@ -12,7 +13,7 @@ include '../includes/cookie-consent.php';
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
-    <script src="https://www.google.com/recaptcha/api.js"></script>
+    <script src="https://www.google.com/recaptcha/api.js?render=<?= getenv('RECAPTCHA_SITE_KEY') ?>"></script>
     <style>
         :root {
             --beige-light: #f4f1ea;
@@ -416,7 +417,7 @@ include '../includes/cookie-consent.php';
                            required 
                            minlength="6" 
                            maxlength="70"
-                           pattern="^[a-zA-Z0-9_-]{6,70}$"
+                           pattern="[a-zA-Z0-9_-]{6,70}"
                            title="6 à 70 caractères (lettres, chiffres, _ et -)">
                     <small class="form-text">6 à 70 caractères (lettres, chiffres, _ et -)</small>
                 </div>
@@ -551,11 +552,10 @@ include '../includes/cookie-consent.php';
                     </small>
                 </div>
                 
-                <!-- Bouton reCAPTCHA -->
-                <button class="g-recaptcha btn btn-primary w-100 mb-3" 
-                        data-sitekey="6LdSOl8sAAAAAGx_I2aFpohASNt--ZCt9_3q4Gg9"
-                        data-callback='onSubmit' 
-                        data-action='submit'>
+                <!-- reCAPTCHA v3 (invisible) -->
+                <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
+                
+                <button type="submit" class="btn btn-primary w-100 mb-3">
                     <i class="bi bi-person-plus me-2"></i>
                     Créer mon compte
                 </button>
@@ -583,9 +583,26 @@ include '../includes/cookie-consent.php';
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    function onSubmit(token) {
-        document.getElementById("form-recaptcha").submit();
-    }
+        // reCAPTCHA v3 - Le script est à la fin, pas besoin d'attendre DOMContentLoaded
+        const form = document.querySelector('form');
+        
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                if (typeof grecaptcha === 'undefined') {
+                    console.error('❌ grecaptcha non chargé');
+                    return;
+                }
+                
+                grecaptcha.ready(function() {
+                    grecaptcha.execute('<?= getenv('RECAPTCHA_SITE_KEY') ?>', {action: 'signup'}).then(function(token) {
+                        document.getElementById('g-recaptcha-response').value = token;
+                        form.submit();
+                    });
+                });
+            });
+        }
     </script>
 </body>
 </html>

@@ -76,40 +76,42 @@ if ($accordMemb != 1) {
     $errors[] = "Vous devez accepter le stockage de vos données pour vous inscrire";
 }
 
-// === 7. VALIDATION reCAPTCHA (optionnel si clés non configurées) ===
-$recaptchaSecret = getenv('RECAPTCHA_SECRET_KEY');
-if ($recaptchaSecret && $recaptchaSecret !== 'your_secret_key_here') {
-    if (isset($_POST['g-recaptcha-response'])) {
-        $token = $_POST['g-recaptcha-response'];
-        $url = 'https://www.google.com/recaptcha/api/siteverify';
-        $data = [
-            'secret' => $recaptchaSecret,
-            'response' => $token
-        ];
-        
-        $options = [
-            'http' => [
-                'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
-                'method' => 'POST',
-                'content' => http_build_query($data)
-            ]
-        ];
-        
-        $context = stream_context_create($options);
-        $result = file_get_contents($url, false, $context);
-        $response = json_decode($result);
-        
-        if (!$response->success) {
-            $errors[] = "Validation reCAPTCHA échouée. Êtes-vous un robot ?";
-        }
+// === 7. VALIDATION reCAPTCHA v3 ===
+$recaptcha_token = $_POST['g-recaptcha-response'] ?? '';
+if (empty($recaptcha_token)) {
+    $errors[] = "Vérification de sécurité échouée";
+} else {
+    $recaptcha_secret = getenv('RECAPTCHA_SECRET_KEY');
+    $recaptcha_threshold = floatval(getenv('RECAPTCHA_SCORE_THRESHOLD') ?: 0.5);
+    
+    $response = @file_get_contents('https://www.google.com/recaptcha/api/siteverify', false, stream_context_create([
+        'http' => [
+            'method' => 'POST',
+            'header' => 'Content-type: application/x-www-form-urlencoded' . "\r\n",
+            'content' => http_build_query(['secret' => $recaptcha_secret, 'response' => $recaptcha_token])
+        ]
+    ]));
+    
+    if ($response === false) {
+        $errors[] = "Erreur de vérification de sécurité";
     } else {
-        $errors[] = "Validation reCAPTCHA manquante";
+        $recaptcha_result = json_decode($response);
+        if (!$recaptcha_result->success || $recaptcha_result->score < $recaptcha_threshold) {
+            // Logs de débogage
+            if (getenv('APP_DEBUG') == 'true') {
+                error_log("reCAPTCHA v3 - Signup: success=" . ($recaptcha_result->success ? 'true' : 'false') . ", score=" . ($recaptcha_result->score ?? 'N/A') . ", threshold=" . $recaptcha_threshold);
+            }
+            $errors[] = "Vérification de sécurité échouée. Vous semblez être un bot.";
+        } else {
+            // Logs de débogage - Succès
+            if (getenv('APP_DEBUG') == 'true') {
+                error_log("reCAPTCHA v3 - Signup réussi: score=" . $recaptcha_result->score);
+            }
+        }
     }
 }
 
-// === 8. SI ERREURSsss, RETOUR AU FORMULAIRE ===
-// === 8. SI ERREURSsss, RETOUR AU FORMULAIRE ===
-// === 8. SI ERREURSsss, RETOUR AU FORMULAIRE ===
+// === 8. SI ERREURS, RETOUR AU FORMULAIRE ===
 if (!empty($errors)) {
     $_SESSION['errors'] = $errors;
     $_SESSION['old_data'] = $_POST;

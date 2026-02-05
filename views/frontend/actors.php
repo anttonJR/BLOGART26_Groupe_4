@@ -1,6 +1,16 @@
-<?php 
-require_once '../../header.php';
+<?php
+session_start();
+include 'includes/cookie-consent.php';
+require_once '../../functions/csrf.php';
+$pageTitle = 'Acteurs - Millésime Blog\'Art';
+include 'includes/header.php';
+?>
 
-echo ("Acteur");
+<div class="container mt-5">
+    <h1>Acteurs</h1>
+    <p class="lead">Découvrez les principaux acteurs du blog.</p>
+</div>
 
-include 'includes/cookie-consent.php'; 
+<?php
+include 'includes/footer.php';
+?> 
