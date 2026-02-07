@@ -1,4 +1,5 @@
 <?php
+// CRUD Statuts : UPDATE (chargement + mise à jour)
 // Logique AVANT l'inclusion du header (pour permettre les redirections)
 require_once __DIR__ . '/../../../config.php';
 require_once ROOT . '/functions/auth.php';
@@ -7,6 +8,7 @@ requireAdmin();
 global $DB;
 $error = '';
 
+// Récupérer le statut ciblé
 if (!isset($_GET['id'])) {
     header('Location: ' . ROOT_URL . '/views/backend/statuts/list.php');
     exit;
@@ -22,12 +24,14 @@ if (!$statut) {
     exit;
 }
 
+// Traitement du formulaire de modification
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $libStat = trim($_POST['libStat'] ?? '');
     
     if (empty($libStat)) {
         $error = "Le libellé est requis";
     } else {
+        // Mise à jour du statut
         $stmt = $DB->prepare("UPDATE STATUT SET libStat = ? WHERE numStat = ?");
         $stmt->execute([$libStat, $id]);
         $_SESSION['success'] = "Statut modifié avec succès";

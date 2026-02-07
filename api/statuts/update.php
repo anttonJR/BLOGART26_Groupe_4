@@ -1,4 +1,5 @@
 <?php
+// CRUD Statuts (API) : UPDATE
 // 1. Démarrer la session pour les messages
 session_start();
 require_once '../../functions/csrf.php';

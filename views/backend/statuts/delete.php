@@ -1,10 +1,12 @@
 <?php
+// CRUD Statuts : DELETE (suppression d'un statut)
 require_once __DIR__ . '/../../../config.php';
 require_once ROOT . '/functions/auth.php';
 requireAdmin();
 
 global $DB;
 
+// Vérifier l'ID transmis
 if (!isset($_GET['id'])) {
     header('Location: ' . ROOT_URL . '/views/backend/statuts/list.php');
     exit;
@@ -19,6 +21,7 @@ if ($id <= 3) {
     exit;
 }
 
+// Suppression en base
 $stmt = $DB->prepare("DELETE FROM STATUT WHERE numStat = ?");
 $stmt->execute([$id]);
 

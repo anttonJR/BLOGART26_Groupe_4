@@ -1,4 +1,5 @@
 <?php
+// CRUD Statuts : CREATE (formulaire + insertion)
 $pageTitle = 'Nouveau statut';
 require_once __DIR__ . '/../includes/header.php';
 require_once ROOT . '/functions/auth.php';
@@ -7,12 +8,14 @@ requireAdmin();
 global $DB;
 $error = '';
 
+// Traitement du formulaire de création
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $libStat = trim($_POST['libStat'] ?? '');
     
     if (empty($libStat)) {
         $error = "Le libellé est requis";
     } else {
+        // Insertion du nouveau statut en base
         $stmt = $DB->prepare("INSERT INTO STATUT (libStat) VALUES (?)");
         $stmt->execute([$libStat]);
         $_SESSION['success'] = "Statut créé avec succès";

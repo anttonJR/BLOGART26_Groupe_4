@@ -31,9 +31,10 @@ $pendingCount = $stmtPending->fetch()['pending'] ?? 0;
     <link href="<?= ROOT_URL ?>/src/css/admin.css" rel="stylesheet">
 </head>
 <body class="admin-body">
-    <!-- Sidebar -->
+    <!-- Sidebar : navigation principale (CRUD & modules) -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
+            <!-- Logo + nom du back-office -->
             <a href="<?= ROOT_URL ?>/views/backend/dashboard.php" class="sidebar-brand">
                 <span style="font-size: 1.5rem;">🍷</span>
                 <span>Millésime</span>
@@ -41,6 +42,7 @@ $pendingCount = $stmtPending->fetch()['pending'] ?? 0;
         </div>
         
         <nav class="sidebar-nav">
+            <!-- Accès rapide au Dashboard -->
             <div class="nav-section">
                 <a href="<?= ROOT_URL ?>/views/backend/dashboard.php" class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'dashboard.php' ? 'active' : '' ?>">
                     <i class="bi bi-speedometer2"></i>
@@ -49,6 +51,7 @@ $pendingCount = $stmtPending->fetch()['pending'] ?? 0;
             </div>
             
             <div class="nav-section">
+                <!-- Bloc contenu : CRUD Articles/Thématiques/Mots-clés -->
                 <div class="nav-section-title"><i class="bi bi-folder"></i> Contenu</div>
                 <a href="<?= ROOT_URL ?>/views/backend/articles/list.php" class="nav-link <?= strpos($_SERVER['PHP_SELF'], '/articles/') !== false ? 'active' : '' ?>">
                     <i class="bi bi-file-earmark-text"></i><span>Articles</span>
@@ -62,6 +65,7 @@ $pendingCount = $stmtPending->fetch()['pending'] ?? 0;
             </div>
             
             <div class="nav-section">
+                <!-- Bloc interactions : commentaires, modération, likes -->
                 <div class="nav-section-title"><i class="bi bi-chat-dots"></i> Interactions</div>
                 <a href="<?= ROOT_URL ?>/views/backend/comments/list.php" class="nav-link <?= strpos($_SERVER['PHP_SELF'], '/comments/') !== false && strpos($_SERVER['PHP_SELF'], '/moderation/') === false ? 'active' : '' ?>">
                     <i class="bi bi-chat-left-text"></i><span>Commentaires</span>
@@ -77,6 +81,7 @@ $pendingCount = $stmtPending->fetch()['pending'] ?? 0;
             
             <?php if (isAdmin()): ?>
             <div class="nav-section">
+                <!-- Bloc administration : membres/statuts (CRUD) -->
                 <div class="nav-section-title"><i class="bi bi-gear"></i> Administration</div>
                 <a href="<?= ROOT_URL ?>/views/backend/members/list.php" class="nav-link <?= strpos($_SERVER['PHP_SELF'], '/members/') !== false ? 'active' : '' ?>">
                     <i class="bi bi-people"></i><span>Membres</span>
@@ -97,13 +102,14 @@ $pendingCount = $stmtPending->fetch()['pending'] ?? 0;
     
     <!-- Main Content Wrapper -->
     <div class="main-wrapper">
-        <!-- Top Navbar -->
+        <!-- Top Navbar : actions rapides + profil -->
         <nav class="top-navbar">
             <button class="btn btn-link sidebar-toggle d-lg-none" id="sidebarToggle">
                 <i class="bi bi-list fs-4"></i>
             </button>
             
             <div class="navbar-actions ms-auto">
+                <!-- Badge des commentaires en attente -->
                 <?php if ($pendingCount > 0): ?>
                 <a href="<?= ROOT_URL ?>/views/backend/moderation/comments.php" class="btn btn-link position-relative me-3" title="Commentaires en attente">
                     <i class="bi bi-bell fs-5"></i>
@@ -112,6 +118,7 @@ $pendingCount = $stmtPending->fetch()['pending'] ?? 0;
                 <?php endif; ?>
                 
                 <div class="dropdown">
+                    <!-- Menu utilisateur (profil + déconnexion) -->
                     <button class="btn btn-link user-dropdown" data-bs-toggle="dropdown">
                         <div class="user-avatar"><i class="bi bi-person-circle"></i></div>
                         <div class="user-info d-none d-md-block">

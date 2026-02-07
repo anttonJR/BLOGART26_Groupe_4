@@ -1,4 +1,5 @@
 <?php
+// CRUD Statuts : READ (liste des statuts)
 $pageTitle = 'Statuts';
 require_once __DIR__ . '/../includes/header.php';
 require_once ROOT . '/functions/auth.php';
@@ -6,7 +7,7 @@ requireAdmin();
 
 global $DB;
 
-$stmt = $DB->query("SELECT * FROM STATUT ORDER BY numStat");
+$stmt = $DB->query("SELECT * FROM STATUT ORDER BY numStat"); // Lecture des statuts
 $statuts = $stmt->fetchAll();
 ?>
 
@@ -40,6 +41,7 @@ $statuts = $stmt->fetchAll();
                         <tr>
                             <td><?= $stat['numStat'] ?></td>
                             <td>
+                                <!-- Badge couleur selon le niveau de rôle -->
                                 <?php 
                                 $badgeClass = match($stat['numStat']) {
                                     1 => 'bg-danger',
